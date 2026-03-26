@@ -20,10 +20,8 @@ export function ReviewFinalPanel({ summary, items, onBack, onConfirm }: ReviewFi
     <Card className="p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-black text-slate-950">Revisão final obrigatória</h2>
-          <p className="text-sm text-slate-600">
-            Pedido só pode seguir quando todas as linhas receberam uma decisão operacional válida.
-          </p>
+          <h2 className="text-lg font-black text-slate-950">Revisão final</h2>
+          <p className="text-sm text-slate-600">Feche só quando não houver pendente.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={onBack}>
@@ -60,9 +58,9 @@ export function ReviewFinalPanel({ summary, items, onBack, onConfirm }: ReviewFi
         <div className="mt-4 rounded-3xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-800">
           <div className="flex items-center gap-2 text-lg font-black">
             <CheckCircle2 className="h-5 w-5" />
-            Pedido 100% conferido em termos de decisão operacional
+            Pedido liberado
           </div>
-          <p className="mt-1 text-sm">Ainda assim, as faltas parciais e totais continuarão listadas e serão registradas de forma mínima ao concluir.</p>
+          <p className="mt-1 text-sm">Faltas continuam listadas e entram no histórico mínimo ao concluir.</p>
         </div>
       ) : null}
 

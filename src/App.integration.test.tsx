@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import App from './App'
 import { db } from './lib/db'
 import { loadSnapshot } from './lib/db'
@@ -14,6 +14,11 @@ async function flushReactWork() {
 }
 
 describe('App integration', () => {
+  afterEach(async () => {
+    cleanup()
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
+  })
+
   beforeEach(async () => {
     vi.restoreAllMocks()
     await db.delete()
@@ -158,5 +163,122 @@ describe('App integration', () => {
     })
     expect(screen.getByText(/Checklist operacional/i)).toBeInTheDocument()
     expect(screen.getByText(/7891111/i)).toBeInTheDocument()
+  })
+
+  it('processa múltiplas páginas e permite reprocessar uma página isolada', async () => {
+    const processSpy = vi
+      .spyOn(browserOCRAdapter, 'processPage')
+      .mockImplementation(async (page) => ({
+        pageId: page.id,
+        extractedRows: [`Item ${page.pageNumber};789000${page.pageNumber};UN;1;5,00;5,00`],
+        uncertainRows: [],
+        warnings: [],
+        rawText: `Pedido PED-33000\nItem ${page.pageNumber};789000${page.pageNumber};UN;1;5,00;5,00`,
+        engine: 'mock-qa-ocr',
+        detectedOrderReference: 'PED-33000',
+      }))
+
+    render(<App />)
+
+    const newOrderButtons = await screen.findAllByRole('button', { name: /^Novo pedido$/i })
+    fireEvent.click(newOrderButtons[0])
+    fireEvent.click(await screen.findByRole('button', { name: /Criar pedido/i }))
+
+    const fileInput = document.querySelector('input[type="file"][accept="image/*"][multiple]') as HTMLInputElement
+    const files = [
+      new File(['fake-image-1'], 'pedido_pg1.jpg', { type: 'image/jpeg' }),
+      new File(['fake-image-2'], 'pedido_pg2.jpg', { type: 'image/jpeg' }),
+    ]
+    fireEvent.change(fileInput, { target: { files } })
+
+    await waitFor(() => {
+      expect(screen.getByText(/pedido_pg1\.jpg/i)).toBeInTheDocument()
+      expect(screen.getByText(/pedido_pg2\.jpg/i)).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Ler páginas/i }))
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue(/Item 1/i)).toBeInTheDocument()
+      expect(screen.getByDisplayValue(/Item 2/i)).toBeInTheDocument()
+    })
+    expect(processSpy).toHaveBeenCalledTimes(2)
+
+    fireEvent.click(screen.getByRole('button', { name: /Reler página 1/i }))
+
+    await waitFor(() => {
+      expect(processSpy).toHaveBeenCalledTimes(3)
+    })
+  })
+
+  it('bloqueia conclusão enquanto houver pendente', async () => {
+    render(<App />)
+
+    const newOrderButtons = await screen.findAllByRole('button', { name: /^Novo pedido$/i })
+    fireEvent.click(newOrderButtons[0])
+    fireEvent.click(await screen.findByRole('button', { name: /Criar pedido/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Importar texto/i }))
+
+    const textarea = (await screen.findAllByRole('textbox')).find(
+      (element) => (element as HTMLTextAreaElement).value.includes('Arroz 5kg;7891001'),
+    ) as HTMLTextAreaElement
+    fireEvent.change(textarea, {
+      target: {
+        value: 'Item Pendente QA;7891234;UN;1;2,00;2,00',
+      },
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: /Importar itens válidos/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/Item Pendente QA/i)).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Revisão final/i }))
+
+    expect(screen.getByRole('button', { name: /Confirmar conclusão/i })).toBeDisabled()
+    expect(screen.getAllByText(/Pendentes/i).length).toBeGreaterThan(0)
+  })
+
+  it('permite sair da tela e recuperar o pedido ao reabrir', async () => {
+    const view = render(<App />)
+
+    const newOrderButtons = await screen.findAllByRole('button', { name: /^Novo pedido$/i })
+    fireEvent.click(newOrderButtons[0])
+    fireEvent.click(await screen.findByRole('button', { name: /Criar pedido/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Importar texto/i }))
+
+    const textarea = (await screen.findAllByRole('textbox')).find(
+      (element) => (element as HTMLTextAreaElement).value.includes('Arroz 5kg;7891001'),
+    ) as HTMLTextAreaElement
+    fireEvent.change(textarea, {
+      target: {
+        value: 'Item Recuperacao QA;7897777;UN;2;4,00;8,00',
+      },
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: /Importar itens válidos/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/Item Recuperacao QA/i)).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /^Sair$/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Sair da tela/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Em andamento/i)).toBeInTheDocument()
+    })
+    expect(screen.getByText(/Continuar pedido/i)).toBeInTheDocument()
+
+    view.unmount()
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/Em andamento/i)).toBeInTheDocument()
+    })
+    fireEvent.click(await screen.findByRole('button', { name: /Continuar pedido/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Item Recuperacao QA/i)).toBeInTheDocument()
+    })
   })
 })

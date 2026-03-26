@@ -134,6 +134,21 @@ Em produção, o PWA tende a funcionar melhor por já estar em HTTPS, o que ajud
 9. Confirmar novamente a liberação da próxima lista.
 10. Remover do dispositivo os dados completos do pedido, preservando apenas o histórico mínimo de faltas.
 
+## Checklist operacional rápido
+
+Use este roteiro no celular antes de pilotar com pedido real:
+
+1. Criar pedido novo.
+2. Adicionar 2 ou mais páginas.
+3. Rodar leitura.
+4. Conferir se páginas com problema ficam visíveis.
+5. Liberar separação só depois da revisão.
+6. Marcar `OK`, `Parcial` e `Falta`.
+7. Confirmar que o app avança para o próximo pendente.
+8. Sair da tela e voltar.
+9. Reabrir o app e confirmar recuperação do pedido.
+10. Concluir o pedido e verificar que só o histórico mínimo permaneceu.
+
 ## Persistência e retenção mínima
 
 - Pedido em andamento: salvo em `IndexedDB`

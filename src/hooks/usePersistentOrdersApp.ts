@@ -149,7 +149,7 @@ export function usePersistentOrdersApp() {
       createdAt: new Date().toISOString(),
       ...entry,
     }
-    void appendPilotLogs([record])
+    void appendPilotLogs([record]).catch(() => undefined)
     setPilotLogs((previous) => [record, ...previous].slice(0, 200))
   }
 
@@ -431,7 +431,7 @@ export function usePersistentOrdersApp() {
     }
 
     if (structureProfiles.length > 0) {
-      void appendScanStructureMemory(structureProfiles)
+      void appendScanStructureMemory(structureProfiles).catch(() => undefined)
       setScanStructureMemory((previous) => [...structureProfiles, ...previous].slice(0, 50))
     }
 
@@ -702,7 +702,7 @@ export function usePersistentOrdersApp() {
   }
 
   function removeShortageHistoryEntry(recordId: string) {
-    void deleteShortageHistoryRecord(recordId)
+    void deleteShortageHistoryRecord(recordId).catch(() => undefined)
     setShortageHistoryState((previous) => previous.filter((record) => record.id !== recordId))
     showToast('Registro removido do histórico.')
   }
