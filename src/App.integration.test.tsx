@@ -273,6 +273,7 @@ describe('App integration', () => {
     render(<App />)
 
     await waitFor(() => {
+      expect(screen.queryByText(/Carregando pedido em andamento/i)).not.toBeInTheDocument()
       expect(screen.getByText(/Em andamento/i)).toBeInTheDocument()
     })
     fireEvent.click(await screen.findByRole('button', { name: /Continuar pedido/i }))

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectContentBounds, detectDocumentCorners } from './preprocess'
+import { computeAdaptiveThreshold, detectContentBounds, detectDocumentCorners, removeIsolatedNoise } from './preprocess'
 
 function createBinaryScene(width: number, height: number, painter: (x: number, y: number) => boolean) {
   const luminances = new Array<number>(width * height).fill(255)
@@ -21,6 +21,30 @@ describe('detectContentBounds', () => {
     expect(bounds.bottom).toBeGreaterThanOrEqual(100)
     expect(bounds.left).toBeLessThanOrEqual(20)
     expect(bounds.right).toBeGreaterThanOrEqual(80)
+  })
+})
+
+describe('adaptive threshold helpers', () => {
+  it('calcula threshold adaptativo dentro de faixa útil', () => {
+    const threshold = computeAdaptiveThreshold([40, 55, 60, 180, 190, 210, 220, 235])
+    expect(threshold).toBeGreaterThan(80)
+    expect(threshold).toBeLessThan(190)
+  })
+
+  it('remove ruído isolado e preserva bloco principal', () => {
+    const width = 5
+    const height = 5
+    const luminances = [
+      255, 255, 255, 255, 255,
+      255, 0, 255, 255, 255,
+      255, 255, 0, 0, 255,
+      255, 255, 0, 0, 255,
+      255, 255, 255, 255, 255,
+    ]
+    const cleaned = removeIsolatedNoise(luminances, width, height, 127)
+    expect(cleaned[6]).toBe(255)
+    expect(cleaned[12]).toBe(0)
+    expect(cleaned[13]).toBe(0)
   })
 })
 

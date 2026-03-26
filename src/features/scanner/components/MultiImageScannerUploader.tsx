@@ -21,6 +21,14 @@ export function MultiImageScannerUploader({
   embedded = false,
 }: MultiImageScannerUploaderProps) {
   const Wrapper = embedded ? 'div' : Card
+  const queuedCount = pages.filter((page) => page.status === 'queued').length
+  const processingCount = pages.filter((page) => page.status === 'processing').length
+  const problemCount = pages.filter((page) => page.status === 'error' || page.recognizedItems === 0 || page.unrecognizedLines.length > 0).length
+  const completedCount = pages.filter((page) => page.status === 'processed' && page.recognizedItems > 0 && page.unrecognizedLines.length === 0).length
+  const processedPages = [...pages]
+    .filter((page) => page.status === 'processed')
+    .sort((left, right) => left.pageNumber - right.pageNumber)
+  const lastProcessedPage = processedPages[processedPages.length - 1]
 
   return (
     <Wrapper className={embedded ? 'grid gap-3' : 'p-4'}>
@@ -52,6 +60,21 @@ export function MultiImageScannerUploader({
           </Button>
         </div>
       </div>
+
+      {pages.length > 0 ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">Fila {queuedCount}</div>
+          <div className="rounded-2xl bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700">Lendo {processingCount}</div>
+          <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">OK {completedCount}</div>
+          <div className="rounded-2xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">Ação {problemCount}</div>
+        </div>
+      ) : null}
+
+      {lastProcessedPage ? (
+        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+          Última lida: página {lastProcessedPage.pageNumber}
+        </div>
+      ) : null}
 
       <div className="mt-4 grid gap-3">
         {pages.length === 0 ? (

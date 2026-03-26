@@ -47,6 +47,12 @@ function median(values: number[]) {
   return sorted[Math.floor(sorted.length / 2)] ?? 0
 }
 
+function percentile(values: number[], ratio: number) {
+  const sorted = [...values].sort((left, right) => left - right)
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.floor((sorted.length - 1) * ratio)))
+  return sorted[index] ?? 0
+}
+
 function distance(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
@@ -235,6 +241,48 @@ function interpolatePoint(a: Point, b: Point, ratio: number): Point {
   }
 }
 
+export function computeAdaptiveThreshold(luminances: number[]) {
+  const low = percentile(luminances, 0.12)
+  const high = percentile(luminances, 0.88)
+  const spread = Math.max(18, high - low)
+  return Math.max(80, Math.min(190, low + spread * 0.58))
+}
+
+export function removeIsolatedNoise(
+  luminances: number[],
+  width: number,
+  height: number,
+  threshold: number,
+) {
+  const next = [...luminances]
+
+  for (let row = 1; row < height - 1; row += 1) {
+    for (let column = 1; column < width - 1; column += 1) {
+      const index = row * width + column
+      const currentDark = luminances[index] <= threshold
+      let darkNeighbors = 0
+
+      for (let y = -1; y <= 1; y += 1) {
+        for (let x = -1; x <= 1; x += 1) {
+          if (x === 0 && y === 0) continue
+          if (luminances[(row + y) * width + (column + x)] <= threshold) {
+            darkNeighbors += 1
+          }
+        }
+      }
+
+      if (currentDark && darkNeighbors <= 1) {
+        next[index] = 255
+      }
+      if (!currentDark && darkNeighbors >= 7) {
+        next[index] = 0
+      }
+    }
+  }
+
+  return next
+}
+
 function rectifyFromCorners(source: ImageData, corners: DocumentCorners, context: CanvasRenderingContext2D) {
   const outputWidth = Math.max(
     1,
@@ -314,7 +362,7 @@ export async function preprocessImageForOCR(imageUrl: string): Promise<Preproces
   context.drawImage(image, 0, 0, width, height)
   const frame = context.getImageData(0, 0, width, height)
   const { data } = frame
-  const operations = ['escala para OCR', 'grayscale', 'contraste reforçado', 'binarização']
+  const operations = ['escala para OCR', 'grayscale', 'contraste adaptativo', 'binarização', 'limpeza leve de ruído']
 
   let totalLuminance = 0
   const luminances = new Array<number>(data.length / 4)
@@ -329,11 +377,11 @@ export async function preprocessImageForOCR(imageUrl: string): Promise<Preproces
   }
 
   const averageLuminance = totalLuminance / luminances.length
-  const threshold = averageLuminance > 170 ? averageLuminance - 12 : averageLuminance + 8
+  const threshold = computeAdaptiveThreshold(luminances)
 
   for (let index = 0; index < data.length; index += 4) {
     const sourceLuminance = luminances[index / 4]
-    const contrasted = clampChannel((sourceLuminance - averageLuminance) * 1.85 + averageLuminance)
+    const contrasted = clampChannel((sourceLuminance - averageLuminance) * 2.15 + averageLuminance)
     const binary = contrasted > threshold ? 255 : 0
     data[index] = binary
     data[index + 1] = binary
@@ -342,7 +390,16 @@ export async function preprocessImageForOCR(imageUrl: string): Promise<Preproces
     luminances[index / 4] = binary
   }
 
-  const analysis = { width, height, luminances, threshold: 127 }
+  const cleanedLuminances = removeIsolatedNoise(luminances, width, height, 127)
+  for (let index = 0; index < data.length; index += 4) {
+    const binary = cleanedLuminances[index / 4]
+    data[index] = binary
+    data[index + 1] = binary
+    data[index + 2] = binary
+    data[index + 3] = 255
+  }
+
+  const analysis = { width, height, luminances: cleanedLuminances, threshold: 127 }
   const bounds = detectContentBounds(analysis)
   const corners = detectDocumentCorners(analysis, bounds)
 

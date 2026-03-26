@@ -37,7 +37,6 @@ MVP funcional de uma aplicação web mobile-first para separação e conferênci
 - Histórico mínimo local apenas para faltas totais e parciais
 - Recurso auxiliar de imagem de apoio do produto por adapter
 - Importação por texto como fluxo de backup
-- Dados demo com múltiplas páginas, OCR incompleto e histórico de faltas
 - PWA instalável com cache offline básico do app shell
 - Testes automatizados para parser, persistência e recálculo financeiro
 - Cobertura de parser para múltiplos formatos de código: numérico, EAN, alfanumérico, SKU e códigos com separadores
