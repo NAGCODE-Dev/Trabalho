@@ -1,4 +1,4 @@
-import { Camera, FileImage, RefreshCcw, Trash2, Upload } from 'lucide-react'
+import { AlertTriangle, Camera, CheckCircle2, RefreshCcw, Trash2, Upload } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Card } from '../../../components/ui/card'
 import type { OrderPage } from '../../orders/types'
@@ -9,6 +9,7 @@ interface MultiImageScannerUploaderProps {
   onProcessAll: () => void
   onReprocessPage: (pageId: string) => void
   onRemovePage: (pageId: string) => void
+  embedded?: boolean
 }
 
 export function MultiImageScannerUploader({
@@ -17,13 +18,16 @@ export function MultiImageScannerUploader({
   onProcessAll,
   onReprocessPage,
   onRemovePage,
+  embedded = false,
 }: MultiImageScannerUploaderProps) {
+  const Wrapper = embedded ? 'div' : Card
+
   return (
-    <Card className="p-4">
+    <Wrapper className={embedded ? 'grid gap-3' : 'p-4'}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-black text-slate-950">Páginas do pedido</h2>
-          <p className="text-sm text-slate-600">Aceita uma ou várias fotos do mesmo pedido. Cada página fica rastreável e pode ser reprocessada.</p>
+          <h2 className="text-lg font-black text-slate-950">{embedded ? '1. Páginas' : 'Páginas do pedido'}</h2>
+          <p className="text-sm text-slate-600">{embedded ? 'Adicione as fotos e rode a leitura.' : 'Uma ou várias fotos da mesma lista. Cada página fica separada para facilitar a revisão.'}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white">
@@ -44,7 +48,7 @@ export function MultiImageScannerUploader({
             />
           </label>
           <Button variant="secondary" onClick={onProcessAll} disabled={pages.length === 0}>
-            Rodar OCR
+            Ler páginas
           </Button>
         </div>
       </div>
@@ -52,36 +56,87 @@ export function MultiImageScannerUploader({
       <div className="mt-4 grid gap-3">
         {pages.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 p-5 text-sm text-slate-600">
-            Nenhuma página adicionada. O fluxo principal é por OCR. Se faltar reconhecimento, a inserção manual continua disponível como exceção.
+            Nenhuma página adicionada ainda.
           </div>
         ) : (
-          pages.map((page) => (
-            <div key={page.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <FileImage className="h-4 w-4" />
-                    Página {page.pageNumber}
+          pages.map((page) => {
+            const hasCriticalProblem = page.status === 'error' || page.recognizedItems === 0
+            const needsReview = !hasCriticalProblem && page.unrecognizedLines.length > 0
+
+            return (
+              <div
+                key={page.id}
+                className={`rounded-3xl border-2 p-4 ${
+                  hasCriticalProblem
+                    ? 'border-red-500 bg-red-50'
+                    : needsReview
+                      ? 'border-amber-400 bg-amber-50'
+                      : 'border-emerald-300 bg-emerald-50'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-sm font-black text-slate-950">
+                      {hasCriticalProblem ? (
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                      ) : needsReview ? (
+                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      )}
+                      Página {page.pageNumber}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-black uppercase tracking-wide ${
+                          hasCriticalProblem
+                            ? 'bg-red-600 text-white'
+                            : needsReview
+                              ? 'bg-amber-400 text-slate-950'
+                              : 'bg-emerald-600 text-white'
+                        }`}
+                      >
+                        {hasCriticalProblem ? 'Ação agora' : needsReview ? 'Revisar' : 'OK'}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-sm text-slate-700">{page.name}</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <div className="rounded-2xl bg-white/80 px-3 py-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Itens lidos</div>
+                        <div className="mt-1 text-lg font-black text-slate-950">{page.recognizedItems}</div>
+                      </div>
+                      <div className="rounded-2xl bg-white/80 px-3 py-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Trechos com problema</div>
+                        <div className="mt-1 text-lg font-black text-slate-950">{page.unrecognizedLines.length}</div>
+                      </div>
+                    </div>
+                    <p
+                      className={`mt-3 text-sm font-black ${
+                        hasCriticalProblem ? 'text-red-700' : needsReview ? 'text-amber-700' : 'text-emerald-700'
+                      }`}
+                    >
+                      {page.status === 'error'
+                        ? 'Falhou. Rode de novo.'
+                        : page.recognizedItems === 0
+                          ? 'Nada foi lido. Revise esta página.'
+                          : page.unrecognizedLines.length > 0
+                            ? 'Leitura parcial. Ainda falta revisar.'
+                            : 'Leitura concluída.'}
+                    </p>
+                    {page.warnings.length > 0 ? <p className="mt-1 text-xs font-medium text-slate-700">{page.warnings[0]}</p> : null}
                   </div>
-                  <p className="mt-1 text-sm text-slate-600">{page.name}</p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Status: {page.status} | Itens reconhecidos: {page.recognizedItems}
-                  </p>
-                  {page.warnings.length > 0 ? <p className="mt-2 text-xs font-semibold text-orange-600">{page.warnings.join(' ')}</p> : null}
-                </div>
-                <div className="flex gap-2">
-                  <Button size="icon" variant="secondary" onClick={() => onReprocessPage(page.id)}>
-                    <RefreshCcw className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => onRemovePage(page.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="icon" variant="secondary" onClick={() => onReprocessPage(page.id)} aria-label={`Reler página ${page.pageNumber}`}>
+                      <RefreshCcw className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => onRemovePage(page.id)} aria-label={`Remover página ${page.pageNumber}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
-    </Card>
+    </Wrapper>
   )
 }

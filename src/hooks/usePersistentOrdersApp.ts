@@ -161,20 +161,19 @@ export function usePersistentOrdersApp() {
       const seeded = await hasSeededDemo()
 
       if (!seeded && !snapshot.currentOrder) {
-        await saveCurrentOrder(demo.activeOrder)
         if (snapshot.shortageHistory.length === 0) {
           await appendShortageHistory(demo.shortageHistory)
         }
         await setSeededDemo(true)
         if (!mounted) return
-        setCurrentOrder(createOrderFromTemplate(demo.activeOrder, demo.shortageHistory))
+        setCurrentOrder(null)
         setShortageHistoryState(demo.shortageHistory)
         setScanStructureMemory(snapshot.scanStructureMemory)
         setPilotLogs(snapshot.pilotLogs)
         pushPilotLog({
           level: 'info',
           event: 'app_bootstrap',
-          message: 'Aplicação inicializada com dados demo.',
+          message: 'Aplicação inicializada na tela inicial.',
         })
         setIsReady(true)
         return
@@ -346,6 +345,7 @@ export function usePersistentOrdersApp() {
 
     const processedPages: Record<string, OrderPage> = {}
     const structureProfiles: ScanStructureProfile[] = []
+    const detectedReferences: string[] = []
 
     for (const page of currentOrder.pages.filter((candidate) => selectedIds.has(candidate.id))) {
       try {
@@ -360,6 +360,9 @@ export function usePersistentOrdersApp() {
           sourceEngine: result.engine,
         })
         structureProfiles.push(structureProfile)
+        if (result.detectedOrderReference) {
+          detectedReferences.push(result.detectedOrderReference)
+        }
         processedPages[page.id] = {
           ...page,
           status: 'processed',
@@ -448,9 +451,11 @@ export function usePersistentOrdersApp() {
         })),
       )
       const consistencyIssues = validateOCRConsistency(previewItems)
+      const nextReference = detectedReferences[0] ?? order.reference
 
       return {
         ...order,
+        reference: nextReference,
         stage: 'ocr-review',
         pages,
         ocrReview: {
@@ -558,39 +563,35 @@ export function usePersistentOrdersApp() {
   function setItemStatus(itemId: string, status: ItemStatus) {
     updateOrder((order) => ({
       ...order,
-      items: orderItemsByCriticality(
-        order.items.map((item) => {
-          if (item.id !== itemId) return item
-          setLastUndo({ itemId, previous: item })
-          return recalculateItem({ ...applyStatus(item, status), hasHistoryAlert: item.hasHistoryAlert })
-        }),
-      ),
+      items: order.items.map((item) => {
+        if (item.id !== itemId) return item
+        setLastUndo({ itemId, previous: item })
+        return recalculateItem({ ...applyStatus(item, status), hasHistoryAlert: item.hasHistoryAlert })
+      }),
     }))
   }
 
   function setSeparatedQuantity(itemId: string, quantitySeparated: number) {
     updateOrder((order) => ({
       ...order,
-      items: orderItemsByCriticality(
-        order.items.map((item) => {
-          if (item.id !== itemId) return item
-          setLastUndo({ itemId, previous: item })
-          const next = recalculateItem({
-            ...item,
-            quantitySeparated,
-            status:
-              quantitySeparated === 0
-                ? 'total-shortage'
-                : quantitySeparated < item.quantityRequested
-                  ? 'partial-shortage'
-                  : 'separated-complete',
-          })
-          return {
-            ...next,
-            hasHistoryAlert: item.hasHistoryAlert,
-          }
-        }),
-      ),
+      items: order.items.map((item) => {
+        if (item.id !== itemId) return item
+        setLastUndo({ itemId, previous: item })
+        const next = recalculateItem({
+          ...item,
+          quantitySeparated,
+          status:
+            quantitySeparated === 0
+              ? 'total-shortage'
+              : quantitySeparated < item.quantityRequested
+                ? 'partial-shortage'
+                : 'separated-complete',
+        })
+        return {
+          ...next,
+          hasHistoryAlert: item.hasHistoryAlert,
+        }
+      }),
     }))
   }
 
@@ -643,9 +644,7 @@ export function usePersistentOrdersApp() {
     if (!lastUndo) return
     updateOrder((order) => ({
       ...order,
-      items: orderItemsByCriticality(
-        order.items.map((item) => (item.id === lastUndo.itemId ? lastUndo.previous : item)),
-      ),
+      items: order.items.map((item) => (item.id === lastUndo.itemId ? lastUndo.previous : item)),
     }))
     setLastUndo(null)
     showToast('Última alteração desfeita.')

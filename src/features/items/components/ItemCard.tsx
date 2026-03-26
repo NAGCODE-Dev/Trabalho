@@ -15,7 +15,6 @@ interface ItemCardProps {
   onSetSeparatedQuantity: (quantity: number) => void
   onOpenImage: () => void
   onDelete: () => void
-  onNoteChange: (note: string) => void
 }
 
 export function ItemCard({
@@ -26,7 +25,6 @@ export function ItemCard({
   onSetSeparatedQuantity,
   onOpenImage,
   onDelete,
-  onNoteChange,
 }: ItemCardProps) {
   const meta = statusMeta[item.status]
   const match = getItemSearchMatch(item, searchQuery)
@@ -53,12 +51,11 @@ export function ItemCard({
             </h3>
             <div className="mt-1 flex flex-wrap gap-3 text-sm text-slate-700">
               <span>
-                Cód. <HighlightedText text={item.code || 'sem código'} query={match.fields.includes('code') ? searchQuery : ''} strong />
+                Cód <HighlightedText text={item.code || '-'} query={match.fields.includes('code') ? searchQuery : ''} strong />
               </span>
               <span>
-                Un. <HighlightedText text={item.unit} query={match.fields.includes('unit') ? searchQuery : ''} strong />
+                Un <HighlightedText text={item.unit} query={match.fields.includes('unit') ? searchQuery : ''} strong />
               </span>
-              <span>Fonte {item.source === 'manual' ? 'manual' : item.source === 'ocr' ? 'OCR' : 'texto'}</span>
             </div>
           </div>
           <Button size="icon" variant="secondary" onClick={onOpenImage}>
@@ -68,11 +65,11 @@ export function ItemCard({
 
         <div className={`mt-4 grid gap-3 ${compactMode ? 'grid-cols-3' : 'grid-cols-1 sm:grid-cols-3'}`}>
           <div className="rounded-2xl bg-white/80 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pedido</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pedida</p>
             <p className="mt-1 text-lg font-black text-slate-950">{formatQuantity(item.quantityRequested)}</p>
           </div>
           <div className="rounded-2xl bg-white/80 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Separado</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Feita</p>
             <Input
               type="number"
               min={0}
@@ -83,10 +80,10 @@ export function ItemCard({
             />
           </div>
           <div className="rounded-2xl bg-white/80 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Faltou</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Falta</p>
             <p className="mt-1 text-lg font-black text-slate-950">{formatQuantity(item.quantityMissing)}</p>
             <p className="mt-1 text-xs text-slate-600">
-              {formatQuantity(item.quantitySeparated)}/{formatQuantity(item.quantityRequested)} separado
+              {formatQuantity(item.quantitySeparated)}/{formatQuantity(item.quantityRequested)}
             </p>
           </div>
         </div>
@@ -94,51 +91,34 @@ export function ItemCard({
         <div className="mt-3 rounded-2xl bg-white/80 p-3 text-sm text-slate-700">
           <div className="flex items-center gap-2 font-semibold text-slate-900">
             <Package className="h-4 w-4" />
-            Financeiro da linha
+            Valores
           </div>
           <p className="mt-2">
-            Unitário {formatCurrency(item.unitPrice)} | Pedido {formatCurrency(item.lineTotalRequested)}
+            Unit {formatCurrency(item.unitPrice)} | Pedido {formatCurrency(item.lineTotalRequested)}
           </p>
           <p>
-            Atendido {formatCurrency(item.lineTotalServed)} | Faltante {formatCurrency(item.lineTotalMissing)}
+            Feito {formatCurrency(item.lineTotalServed)} | Falta {formatCurrency(item.lineTotalMissing)}
           </p>
         </div>
 
-        {!compactMode && (
-          <>
-            <textarea
-              className="mt-3 min-h-[84px] w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm outline-none focus:border-slate-400"
-              placeholder="Observação opcional do item"
-              value={item.note ?? ''}
-              onChange={(event) => onNoteChange(event.target.value)}
-            />
-            {item.note && match.fields.includes('note') ? (
-              <div className="mt-2 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-slate-700">
-                <span className="font-semibold text-sky-800">Trecho encontrado na observação: </span>
-                <HighlightedText text={item.note} query={searchQuery} />
-              </div>
-            ) : null}
-          </>
-        )}
-
-        <div className="mt-4 grid gap-2 sm:grid-cols-5">
+        <div className="mt-4 grid gap-2 sm:grid-cols-4">
           <Button variant="primary" onClick={() => onSetStatus('pending')}>
             Pendente
           </Button>
           <Button variant="secondary" onClick={() => onSetStatus('separated-complete')}>
-            Completo
+            OK
           </Button>
           <Button variant="warning" onClick={() => onSetStatus('partial-shortage')}>
             Parcial
           </Button>
           <Button variant="warning" onClick={() => onSetStatus('total-shortage')}>
-            Em falta
-          </Button>
-          <Button variant="ghost" onClick={onDelete}>
-            <Trash2 className="h-4 w-4" />
-            Excluir
+            Falta
           </Button>
         </div>
+        <Button className="mt-2" variant="ghost" onClick={onDelete}>
+          <Trash2 className="h-4 w-4" />
+          Excluir
+        </Button>
       </div>
     </Card>
   )

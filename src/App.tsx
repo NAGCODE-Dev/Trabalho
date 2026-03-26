@@ -5,7 +5,6 @@ import { DashboardHeader } from './components/DashboardHeader'
 import { Button } from './components/ui/button'
 import { Card } from './components/ui/card'
 import { Dialog } from './components/ui/dialog'
-import { OrderList } from './features/orders/components/OrderList'
 import { OrderDetail } from './features/orders/components/OrderDetail'
 import { NewOrderDialog } from './features/orders/components/NewOrderDialog'
 import { AddItemDialog } from './features/items/components/AddItemDialog'
@@ -24,6 +23,7 @@ function App() {
   const app = usePersistentOrdersApp()
   const pwa = usePwaState()
   const [showHistory, setShowHistory] = useState(false)
+  const [showOrderWorkspace, setShowOrderWorkspace] = useState(false)
   const [newOrderOpen, setNewOrderOpen] = useState(false)
   const [addItemOpen, setAddItemOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -53,7 +53,10 @@ function App() {
         <DashboardHeader
           hasCurrentOrder={Boolean(app.currentOrder)}
           currentReference={app.currentOrder?.reference}
-          onNewOrder={() => setNewOrderOpen(true)}
+          onNewOrder={() => {
+            setNewOrderOpen(true)
+            setShowHistory(false)
+          }}
           onToggleHistory={() => setShowHistory((current) => !current)}
           showingHistory={showHistory}
           isOnline={pwa.isOnline}
@@ -63,16 +66,18 @@ function App() {
         />
       }
     >
-      <PwaBanner
-        isOnline={pwa.isOnline}
-        isInstalled={pwa.isInstalled}
-        canInstall={pwa.canInstall}
-        updateReady={pwa.updateReady}
-        onInstall={() => void pwa.promptInstall()}
-        onRefresh={() => window.location.reload()}
-      />
+      {!app.currentOrder || showHistory ? (
+        <PwaBanner
+          isOnline={pwa.isOnline}
+          isInstalled={pwa.isInstalled}
+          canInstall={pwa.canInstall}
+          updateReady={pwa.updateReady}
+          onInstall={() => void pwa.promptInstall()}
+          onRefresh={() => window.location.reload()}
+        />
+      ) : null}
 
-      {app.currentOrder && !showHistory ? (
+      {app.currentOrder && showOrderWorkspace && !showHistory ? (
         <>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button variant="secondary" onClick={() => setAddItemOpen(true)}>
@@ -112,7 +117,6 @@ function App() {
             onSetSeparatedQuantity={app.setSeparatedQuantity}
             onOpenImage={setSelectedItem}
             onDeleteItem={setDeleteCandidate}
-            onNoteChange={app.updateItemNote}
             onUndo={app.undoLastItemChange}
             onMoveToFinalReview={app.moveToFinalReview}
             onBackFromReview={app.returnToPicking}
@@ -125,13 +129,68 @@ function App() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <section className="grid gap-4">
-            <Card className="p-4">
-              <h2 className="text-lg font-black text-slate-950">Pedidos demo disponíveis</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Dois cenários prontos para demonstração: um já em conferência e outro aguardando revisão do OCR.
-              </p>
+            <Card className="overflow-hidden border-0 bg-white">
+              <div className="bg-[linear-gradient(180deg,#fff8ea_0%,#f6f4ee_100%)] p-5">
+                <h2 className="text-2xl font-black text-slate-950">Tela inicial</h2>
+                <p className="mt-2 text-sm text-slate-700">
+                  Escolha como começar. Nada abre sozinho. O operador entra no pedido quando decidir.
+                </p>
+
+                <div className="mt-4 grid gap-3">
+                  {app.currentOrder ? (
+                    <div className="rounded-[28px] border border-amber-300 bg-amber-50 p-4">
+                      <div className="text-sm font-semibold text-amber-800">Pedido em andamento recuperado</div>
+                      <div className="mt-1 text-xl font-black text-slate-950">{app.currentOrder.reference}</div>
+                      <p className="mt-1 text-sm text-slate-700">
+                        O pedido continua salvo no dispositivo. Entre nele quando quiser continuar.
+                      </p>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <Button
+                          onClick={() => {
+                            setShowOrderWorkspace(true)
+                            setShowHistory(false)
+                          }}
+                        >
+                          Continuar pedido
+                        </Button>
+                        <Button variant="secondary" onClick={() => setShowHistory(true)}>
+                          Ver histórico de faltas
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Card className="p-4">
+                      <h3 className="text-lg font-black text-slate-950">Começar novo pedido</h3>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Inicie um pedido vazio e depois adicione fotos, câmera ou importação por texto.
+                      </p>
+                      <Button
+                        className="mt-4"
+                        fullWidth
+                        onClick={() => {
+                          setNewOrderOpen(true)
+                          setShowHistory(false)
+                        }}
+                      >
+                        Novo pedido
+                      </Button>
+                    </Card>
+
+                    <Card className="p-4">
+                      <h3 className="text-lg font-black text-slate-950">Histórico de faltas</h3>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Consulte itens que já faltaram antes para apoiar a separação.
+                      </p>
+                      <Button className="mt-4" fullWidth variant="secondary" onClick={() => setShowHistory(true)}>
+                        Abrir histórico
+                      </Button>
+                    </Card>
+                  </div>
+                </div>
+              </div>
             </Card>
-            <OrderList orders={app.demoOrders} onOpen={app.loadTemplate} />
           </section>
 
           <ShortageHistoryPanel history={app.shortageHistory} />
@@ -151,6 +210,7 @@ function App() {
           app.createOrder(reference)
           setFilter('all')
           setSearchQuery('')
+          setShowOrderWorkspace(true)
         }}
       />
 
@@ -170,6 +230,7 @@ function App() {
         onClose={() => setExitOpen(false)}
         onConfirm={() => {
           setExitOpen(false)
+          setShowOrderWorkspace(false)
           setShowHistory(false)
         }}
       />
@@ -192,6 +253,7 @@ function App() {
               return
             }
             setCompletionStep(0)
+            setShowOrderWorkspace(false)
             setShowHistory(true)
           })
         }}

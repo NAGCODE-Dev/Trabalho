@@ -5,6 +5,7 @@ export interface OCRRawPageResult {
   warnings: string[]
   rawText?: string
   engine?: string
+  detectedOrderReference?: string
 }
 
 export interface OCRAdapter {

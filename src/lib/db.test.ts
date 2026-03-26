@@ -38,7 +38,7 @@ describe('db persistence', () => {
       {
         id: 'scan-1',
         createdAt: new Date().toISOString(),
-        parserVersion: 'bling-heuristic-v2',
+        parserVersion: 'bling-heuristic-v3',
         sourceEngine: 'tesseract.js',
         lineCount: 10,
         extractedCount: 6,
@@ -48,6 +48,19 @@ describe('db persistence', () => {
         unitHints: ['UN', 'CX'],
         detectedLabels: ['codigo', 'valor-total'],
         lineShapes: ['A A 9 A 9 9,99 9,99'],
+        lineRoleSequence: ['order-header', 'table-header', 'item-line', 'total-footer'],
+        sectionSequence: ['header', 'table-header', 'body', 'footer'],
+        columnCountHints: [6],
+        tokenCountHistogram: [{ tokens: 6, count: 4 }],
+        numericTokenHistogram: [{ numericTokens: 3, count: 4 }],
+        uppercaseRatioBuckets: ['low'],
+        indentationPattern: ['0'],
+        spacingPatternKinds: ['wide-gaps'],
+        orderReferencePattern: 'prefixed',
+        hasCurrencyMarkers: false,
+        hasTableHeader: true,
+        headerShapeHints: ['A 99999'],
+        footerShapeHints: ['A A A 9,99'],
       },
     ])
     const snapshot = await loadSnapshot()

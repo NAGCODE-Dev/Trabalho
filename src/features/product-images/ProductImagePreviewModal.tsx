@@ -23,8 +23,7 @@ export function ProductImagePreviewModal({ open, item, onClose }: ProductImagePr
     <Dialog
       open={open}
       onClose={onClose}
-      title="Imagem de apoio do produto"
-      description="Recurso auxiliar opcional para apoiar operadores novos ou reduzir confusão visual em itens parecidos."
+      title="Imagem do item"
       footer={<Button onClick={onClose}>Fechar</Button>}
     >
       {item ? (

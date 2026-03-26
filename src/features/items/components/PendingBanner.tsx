@@ -9,21 +9,22 @@ interface PendingBannerProps {
 }
 
 export function PendingBanner({ pending, partial, totalShortage, onUndo }: PendingBannerProps) {
+  const shortageCount = partial + totalShortage
+
   return (
-    <div className="sticky top-[10.2rem] z-20 rounded-3xl border border-red-300 bg-red-600 p-4 text-white shadow-lg">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <TriangleAlert className="mt-0.5 h-5 w-5 flex-none" />
-          <div>
-            <p className="text-base font-black">{pending} item(ns) ainda exigem decisão obrigatória</p>
-            <p className="text-sm text-red-100">
-              Parciais: {partial} | Em falta total: {totalShortage}. Nenhum pedido pode ser concluído com pendentes.
-            </p>
-          </div>
+    <div className="sticky top-[8.2rem] z-20 rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2 text-slate-900 shadow-md">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <TriangleAlert className="h-4 w-4 flex-none text-amber-700" />
+          <p className="text-sm font-black">{pending} pendente(s)</p>
+          <span className="rounded-full bg-amber-200 px-2 py-1 text-xs font-bold text-amber-900">Falta {shortageCount}</span>
         </div>
-        <Button variant="secondary" onClick={onUndo}>
-          Desfazer última alteração
-        </Button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-slate-600">Não conclui com pendente.</span>
+          <Button size="sm" variant="secondary" onClick={onUndo}>
+            Desfazer
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -10,20 +10,30 @@ interface OCRReviewPanelProps {
   onChangeItem: (itemId: string, changes: Partial<OCRPreviewItem>) => void
   onRemoveItem: (itemId: string) => void
   onAccept: () => void
+  embedded?: boolean
 }
 
-export function OCRReviewPanel({ previewItems, issues, onChangeItem, onRemoveItem, onAccept }: OCRReviewPanelProps) {
+export function OCRReviewPanel({
+  previewItems,
+  issues,
+  onChangeItem,
+  onRemoveItem,
+  onAccept,
+  embedded = false,
+}: OCRReviewPanelProps) {
+  const Wrapper = embedded ? 'div' : Card
+
   return (
-    <Card className="p-4">
+    <Wrapper className={embedded ? 'grid gap-4' : 'p-4'}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-black text-slate-950">Revisão obrigatória da extração</h2>
+          <h2 className="text-lg font-black text-slate-950">{embedded ? '2. Conferir itens lidos' : 'Conferir leitura da lista'}</h2>
           <p className="text-sm text-slate-600">
-            Nada é assumido silenciosamente. Revise o que foi reconhecido, corrija campos suspeitos e trate linhas não reconhecidas antes de liberar a separação.
+            Corrija o que estiver errado antes de liberar a separação.
           </p>
         </div>
         <Button onClick={onAccept} disabled={previewItems.length === 0}>
-          Criar checklist operacional
+          Liberar separação
         </Button>
       </div>
 
@@ -34,7 +44,7 @@ export function OCRReviewPanel({ previewItems, issues, onChangeItem, onRemoveIte
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                   <Pencil className="h-4 w-4" />
-                  Corrigir item OCR
+                  Item
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => onRemoveItem(item.id)}>
                   <Trash2 className="h-4 w-4" />
@@ -72,23 +82,25 @@ export function OCRReviewPanel({ previewItems, issues, onChangeItem, onRemoveIte
         <div className="rounded-3xl border border-red-200 bg-red-50 p-4">
           <div className="flex items-center gap-2 text-base font-black text-red-800">
             <AlertTriangle className="h-5 w-5" />
-            Linhas não reconhecidas ou suspeitas
+            Trechos com problema
           </div>
           <div className="mt-4 grid gap-3">
             {issues.length === 0 ? (
-              <p className="rounded-2xl bg-white p-3 text-sm text-slate-700">Nenhuma inconsistência adicional encontrada.</p>
+              <p className="rounded-2xl bg-white p-3 text-sm text-slate-700">Nenhum trecho pendente.</p>
             ) : (
               issues.map((issue) => (
                 <div key={issue.id} className="rounded-2xl bg-white p-3 text-sm">
                   <div className="font-semibold text-slate-900">{issue.line}</div>
                   <p className="mt-1 text-red-700">{issue.reason}</p>
-                  <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">{issue.severity}</p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {issue.severity === 'error' ? 'Resolver agora' : 'Revisar'}
+                  </p>
                 </div>
               ))
             )}
           </div>
         </div>
       </div>
-    </Card>
+    </Wrapper>
   )
 }

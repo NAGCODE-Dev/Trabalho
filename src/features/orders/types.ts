@@ -131,6 +131,19 @@ export interface ScanStructureProfile {
   unitHints: string[]
   detectedLabels: string[]
   lineShapes: string[]
+  lineRoleSequence: string[]
+  sectionSequence: string[]
+  columnCountHints: number[]
+  tokenCountHistogram: Array<{ tokens: number; count: number }>
+  numericTokenHistogram: Array<{ numericTokens: number; count: number }>
+  uppercaseRatioBuckets: string[]
+  indentationPattern: string[]
+  spacingPatternKinds: string[]
+  orderReferencePattern?: 'prefixed' | 'numeric' | 'alphanumeric-prefixed'
+  hasCurrencyMarkers: boolean
+  hasTableHeader: boolean
+  headerShapeHints: string[]
+  footerShapeHints: string[]
 }
 
 export interface PilotLogEntry {

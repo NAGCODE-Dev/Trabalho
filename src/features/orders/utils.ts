@@ -26,7 +26,7 @@ export const statusMeta: Record<
     priority: 0,
   },
   'partial-shortage': {
-    label: 'Falta parcial',
+    label: 'Parcial',
     chip: 'bg-orange-500 text-white',
     border: 'border-orange-400',
     text: 'text-orange-700',
@@ -34,7 +34,7 @@ export const statusMeta: Record<
     priority: 1,
   },
   'total-shortage': {
-    label: 'Em falta total',
+    label: 'Falta',
     chip: 'bg-amber-400 text-slate-950',
     border: 'border-amber-400',
     text: 'text-amber-800',
@@ -42,7 +42,7 @@ export const statusMeta: Record<
     priority: 2,
   },
   'separated-complete': {
-    label: 'Separado completo',
+    label: 'OK',
     chip: 'bg-emerald-600 text-white',
     border: 'border-emerald-500',
     text: 'text-emerald-700',

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ListChecks, RotateCcw, ScanSearch } from 'lucide-react'
 import { Button } from '../../../components/ui/button'
 import { Card } from '../../../components/ui/card'
@@ -32,7 +33,6 @@ interface OrderDetailProps {
   onSetSeparatedQuantity: (itemId: string, quantity: number) => void
   onOpenImage: (item: OrderItem) => void
   onDeleteItem: (item: OrderItem) => void
-  onNoteChange: (itemId: string, note: string) => void
   onUndo: () => void
   onMoveToFinalReview: () => void
   onBackFromReview: () => void
@@ -63,7 +63,6 @@ export function OrderDetail({
   onSetSeparatedQuantity,
   onOpenImage,
   onDeleteItem,
-  onNoteChange,
   onUndo,
   onMoveToFinalReview,
   onBackFromReview,
@@ -72,64 +71,150 @@ export function OrderDetail({
   onMarkAllSeparated,
   onResetStatuses,
 }: OrderDetailProps) {
+  const isOcrReview = order.stage === 'ocr-review'
+  const isPickingStage = order.stage !== 'ocr-review' && order.stage !== 'final-review'
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const [nextPendingTargetId, setNextPendingTargetId] = useState<string | null>(null)
+  const pagesWithAttention = order.pages.filter(
+    (page) => page.status === 'error' || page.recognizedItems === 0 || page.unrecognizedLines.length > 0,
+  ).length
+  const pendingVisibleIds = useMemo(
+    () => visibleItems.filter((item) => item.status === 'pending').map((item) => item.id),
+    [visibleItems],
+  )
+
+  useEffect(() => {
+    if (!nextPendingTargetId) return
+    const target = itemRefs.current[nextPendingTargetId]
+    if (!target) return
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    window.setTimeout(() => target.focus(), 120)
+    setNextPendingTargetId(null)
+  }, [nextPendingTargetId, visibleItems])
+
+  function moveToNextPending(fromItemId: string) {
+    if (pendingVisibleIds.length === 0) return
+
+    const currentIndex = visibleItems.findIndex((item) => item.id === fromItemId)
+    if (currentIndex === -1) return
+
+    const nextForward = visibleItems
+      .slice(currentIndex + 1)
+      .find((item) => item.status === 'pending')
+    const wrapped = visibleItems.slice(0, currentIndex).find((item) => item.status === 'pending')
+    const nextTarget = nextForward ?? wrapped
+
+    if (nextTarget) {
+      setNextPendingTargetId(nextTarget.id)
+    }
+  }
+
   return (
     <section className="grid gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
             <ArrowLeft className="h-4 w-4" />
-            Voltar ao painel
+            Voltar
           </button>
-          <h2 className="mt-2 text-2xl font-black text-slate-950">{order.reference}</h2>
-          <p className="text-sm text-slate-600">Etapa atual: {order.stage}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <h2 className="text-2xl font-black text-slate-950">{order.reference}</h2>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-slate-700">
+              {isOcrReview ? 'Etapa 1: OCR' : order.stage === 'final-review' ? 'Etapa 3: revisão final' : 'Etapa 2: separação'}
+            </span>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="secondary" onClick={onToggleCompactMode}>
-            {order.compactMode ? 'Modo detalhado' : 'Modo compacto'}
-          </Button>
-          <Button variant="secondary" onClick={onMarkAllSeparated} disabled={order.items.length === 0}>
-            Marcar todos completos
-          </Button>
-          <Button variant="secondary" onClick={onResetStatuses} disabled={order.items.length === 0}>
-            <RotateCcw className="h-4 w-4" />
-            Resetar status
-          </Button>
-        </div>
+        {isPickingStage ? (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="secondary" onClick={onToggleCompactMode}>
+              {order.compactMode ? 'Modo detalhado' : 'Modo compacto'}
+            </Button>
+            <Button variant="secondary" onClick={onMarkAllSeparated} disabled={order.items.length === 0}>
+              Marcar todos completos
+            </Button>
+            <Button variant="secondary" onClick={onResetStatuses} disabled={order.items.length === 0}>
+              <RotateCcw className="h-4 w-4" />
+              Resetar status
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      <SummaryPanel summary={{ ...summary, visibleItems: visibleItems.length }} />
+      {isPickingStage || order.stage === 'final-review' ? (
+        <SummaryPanel summary={{ ...summary, visibleItems: visibleItems.length }} />
+      ) : null}
 
-      {summary.pending > 0 ? (
+      {isPickingStage && summary.pending > 0 ? (
         <PendingBanner pending={summary.pending} partial={summary.partialShortage} totalShortage={summary.totalShortage} onUndo={onUndo} />
       ) : null}
 
-      <MultiImageScannerUploader
-        pages={order.pages}
-        onFilesSelected={onFilesSelected}
-        onProcessAll={onProcessAllPages}
-        onReprocessPage={onReprocessPage}
-        onRemovePage={onRemovePage}
-      />
+      {isOcrReview ? (
+        <Card className="border-2 border-amber-300 bg-amber-50 p-4">
+          <div className="flex flex-col gap-4">
+            <div>
+              <h3 className="text-xl font-black text-slate-950">Revisão da leitura</h3>
+              <p className="mt-1 text-sm font-semibold text-slate-700">Só siga quando todas as páginas e todos os itens fizerem sentido.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-white p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Páginas</p>
+                <p className="mt-1 text-2xl font-black text-slate-950">{order.pages.length}</p>
+              </div>
+              <div className="rounded-2xl bg-white p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Itens lidos</p>
+                <p className="mt-1 text-2xl font-black text-slate-950">{order.ocrReview.previewItems.length}</p>
+              </div>
+              <div className={`rounded-2xl p-3 ${pagesWithAttention > 0 ? 'bg-red-50' : 'bg-emerald-50'}`}>
+                <p className={`text-xs font-semibold uppercase tracking-wide ${pagesWithAttention > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                  Páginas com problema
+                </p>
+                <p className={`mt-1 text-2xl font-black ${pagesWithAttention > 0 ? 'text-red-700' : 'text-emerald-700'}`}>{pagesWithAttention}</p>
+              </div>
+            </div>
 
-      {order.stage === 'ocr-review' ? (
-        <OCRReviewPanel
-          previewItems={order.ocrReview.previewItems}
-          issues={order.ocrReview.issues}
-          onChangeItem={onPreviewItemChange}
-          onRemoveItem={onPreviewItemRemove}
-          onAccept={onAcceptOCR}
+            <div className="grid gap-4">
+              <MultiImageScannerUploader
+                pages={order.pages}
+                onFilesSelected={onFilesSelected}
+                onProcessAll={onProcessAllPages}
+                onReprocessPage={onReprocessPage}
+                onRemovePage={onRemovePage}
+                embedded
+              />
+
+              <OCRReviewPanel
+                previewItems={order.ocrReview.previewItems}
+                issues={order.ocrReview.issues}
+                onChangeItem={onPreviewItemChange}
+                onRemoveItem={onPreviewItemRemove}
+                onAccept={onAcceptOCR}
+                embedded
+              />
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
+      {!isOcrReview ? (
+        <MultiImageScannerUploader
+          pages={order.pages}
+          onFilesSelected={onFilesSelected}
+          onProcessAll={onProcessAllPages}
+          onReprocessPage={onReprocessPage}
+          onRemovePage={onRemovePage}
         />
       ) : null}
 
-      {order.stage !== 'ocr-review' && order.stage !== 'final-review' ? (
+      {isPickingStage ? (
         <>
           <Card className="p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-950">Checklist operacional</h3>
                 <p className="text-sm text-slate-600">
-                  Ordenação automática por criticidade: pendentes, falta parcial, em falta total e completos.
+                  A lista fica estável durante a conferência para você não perder a posição.
                 </p>
               </div>
               <Button onClick={onMoveToFinalReview} disabled={order.items.length === 0}>
@@ -156,17 +241,29 @@ export function OrderDetail({
               </Card>
             ) : (
               visibleItems.map((item) => (
-                <ItemCard
+                <div
                   key={item.id}
-                  item={item}
-                  compactMode={order.compactMode}
-                  searchQuery={query}
-                  onSetStatus={(status) => onSetStatus(item.id, status)}
-                  onSetSeparatedQuantity={(quantity) => onSetSeparatedQuantity(item.id, quantity)}
-                  onOpenImage={() => onOpenImage(item)}
-                  onDelete={() => onDeleteItem(item)}
-                  onNoteChange={(note) => onNoteChange(item.id, note)}
-                />
+                  ref={(element) => {
+                    itemRefs.current[item.id] = element
+                  }}
+                  tabIndex={-1}
+                  className="rounded-[30px] focus:outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                  <ItemCard
+                    item={item}
+                    compactMode={order.compactMode}
+                    searchQuery={query}
+                    onSetStatus={(status) => {
+                      onSetStatus(item.id, status)
+                      if (status !== 'pending') {
+                        moveToNextPending(item.id)
+                      }
+                    }}
+                    onSetSeparatedQuantity={(quantity) => onSetSeparatedQuantity(item.id, quantity)}
+                    onOpenImage={() => onOpenImage(item)}
+                    onDelete={() => onDeleteItem(item)}
+                  />
+                </div>
               ))
             )}
           </div>
@@ -181,9 +278,9 @@ export function OrderDetail({
         <Card className="border-dashed border-slate-300 p-5">
           <div className="flex items-center gap-2 text-slate-800">
             <ScanSearch className="h-5 w-5" />
-            O fluxo principal começa com múltiplas páginas da lista.
+            Comece pelas páginas da lista.
           </div>
-          <p className="mt-2 text-sm text-slate-600">Adicione as fotos do pedido, rode OCR e revise a extração antes de criar o checklist. A importação por texto fica disponível como backup.</p>
+          <p className="mt-2 text-sm text-slate-600">Adicione as fotos, faça a leitura e revise antes de liberar a separação. Texto continua como backup.</p>
         </Card>
       ) : null}
     </section>

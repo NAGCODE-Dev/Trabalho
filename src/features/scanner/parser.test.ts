@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeOCRTextToRows } from './ocr-text'
+import { extractOrderReferenceFromOCRText, normalizeOCRTextToRows } from './ocr-text'
 import { parseOrderLine } from './parser'
 import { buildScanStructureProfile } from './structure'
 
@@ -99,6 +99,23 @@ Valor total 143,80`
   })
 })
 
+describe('extractOrderReferenceFromOCRText', () => {
+  it('extrai pedido explícito com prefixo PED', () => {
+    const raw = `Cliente XPTO
+Pedido PED-10482
+Arroz Tipo 1 5kg 7891001 FD 3 25,90 77,70`
+
+    expect(extractOrderReferenceFromOCRText(raw)).toBe('PED-10482')
+  })
+
+  it('extrai pedido numérico e normaliza com prefixo PED', () => {
+    const raw = `Nro pedido: 10482
+Feijao Carioca 1kg 7892002 UN 8 8,50 68,00`
+
+    expect(extractOrderReferenceFromOCRText(raw)).toBe('PED-10482')
+  })
+})
+
 describe('buildScanStructureProfile', () => {
   it('guarda apenas estrutura anonimizada do scan', () => {
     const profile = buildScanStructureProfile({
@@ -112,5 +129,30 @@ describe('buildScanStructureProfile', () => {
     expect(profile.detectedLabels).toContain('codigo')
     expect(profile.codePatternKinds.length).toBeGreaterThan(0)
     expect(profile.lineShapes[0]).not.toContain('Feijao')
+  })
+
+  it('guarda estrutura ampliada da folha sem texto bruto', () => {
+    const profile = buildScanStructureProfile({
+      rawText: `Pedido 10482
+Cliente XPTO
+Descricao Codigo Un Qtd Vl unitario Vl total
+Arroz Tipo 1 5kg  7891001  FD  3  25,90  77,70
+Feijao Carioca 1kg  7892002  UN  8  8,50  68,00
+Total do pedido 145,70`,
+      extractedRows: [
+        'Arroz Tipo 1 5kg;7891001;FD;3;25,90;77,70',
+        'Feijao Carioca 1kg;7892002;UN;8;8,50;68,00',
+      ],
+      uncertainRows: [],
+      sourceEngine: 'tesseract.js',
+    })
+
+    expect(profile.lineRoleSequence).toContain('order-header')
+    expect(profile.sectionSequence).toContain('table-header')
+    expect(profile.columnCountHints).toContain(6)
+    expect(profile.orderReferencePattern).toBe('numeric')
+    expect(profile.hasTableHeader).toBe(true)
+    expect(profile.headerShapeHints.join(' ')).not.toContain('XPTO')
+    expect(profile.footerShapeHints.join(' ')).not.toContain('145,70')
   })
 })

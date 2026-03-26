@@ -12,7 +12,13 @@ describe('App integration', () => {
   it('importa item por texto e mostra no checklist operacional', async () => {
     render(<App />)
 
-    await screen.findByText(/Separação segura de pedidos/i)
+    await screen.findByText(/Conferência de pedidos/i)
+    const newOrderButtons = await screen.findAllByRole('button', { name: /^Novo pedido$/i })
+    fireEvent.click(newOrderButtons[0])
+
+    const createOrderButton = await screen.findByRole('button', { name: /Criar pedido/i })
+    fireEvent.click(createOrderButton)
+
     const importButton = await screen.findByRole('button', { name: /Importar texto como backup/i })
     fireEvent.click(importButton)
 

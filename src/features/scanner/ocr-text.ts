@@ -1,5 +1,25 @@
 const KNOWN_UNITS = ['UN', 'CX', 'FD', 'KG', 'PCT', 'PC', 'LT', 'ML', 'SC', 'BD', 'PT', 'RL']
 
+function normalizeDetectedOrderReference(value: string) {
+  const cleaned = compactWhitespace(value)
+    .replace(/^[^\dA-Za-z]+/u, '')
+    .replace(/[^\dA-Za-z-]+$/u, '')
+
+  if (/^PED[- ]?\d{3,12}$/iu.test(cleaned)) {
+    return cleaned.replace(/\s+/g, '-').toUpperCase()
+  }
+
+  if (/^\d{3,12}$/u.test(cleaned)) {
+    return `PED-${cleaned}`
+  }
+
+  if (/^[A-Z]{1,6}[- ]?\d{3,12}$/iu.test(cleaned)) {
+    return cleaned.replace(/\s+/g, '-').toUpperCase()
+  }
+
+  return null
+}
+
 function sanitizeCode(value: string) {
   return value.replace(/[^A-Za-z0-9./_-]/g, '').toUpperCase()
 }
@@ -234,6 +254,31 @@ function looksLikeDetailsOnly(line: string) {
 
 function hasOperationalSignals(line: string) {
   return /\d{4,14}/.test(line) || KNOWN_UNITS.some((unit) => new RegExp(`\\b${unit}\\b`, 'i').test(line))
+}
+
+export function extractOrderReferenceFromOCRText(rawText: string) {
+  const lines = rawText
+    .split('\n')
+    .map((line) => compactWhitespace(line))
+    .filter(Boolean)
+
+  for (const line of lines) {
+    const explicitMatch = line.match(
+      /\b(?:pedido|ped|n[ºo°]?\s*pedido|nro\s*pedido|número\s*pedido)\b[:#\s-]*([A-Za-z]{0,6}[- ]?\d{3,12})/iu,
+    )
+    const explicitCandidate = explicitMatch?.[1] ? normalizeDetectedOrderReference(explicitMatch[1]) : null
+    if (explicitCandidate) {
+      return explicitCandidate
+    }
+
+    const prefixedMatch = line.match(/\b(PED[- ]?\d{3,12})\b/iu)
+    const prefixedCandidate = prefixedMatch?.[1] ? normalizeDetectedOrderReference(prefixedMatch[1]) : null
+    if (prefixedCandidate) {
+      return prefixedCandidate
+    }
+  }
+
+  return null
 }
 
 export function normalizeOCRTextToRows(rawText: string) {

@@ -1,4 +1,4 @@
-import { normalizeOCRTextToRows } from './ocr-text'
+import { extractOrderReferenceFromOCRText, normalizeOCRTextToRows } from './ocr-text'
 import { preprocessImageForOCR } from './preprocess'
 import { type OCRAdapter, type OCRRawPageResult } from './types'
 
@@ -23,6 +23,7 @@ const sampleUncertain = [
 async function mockProcessPage(page: { id: string; pageNumber: number }): Promise<OCRRawPageResult> {
   const index = (page.pageNumber - 1) % sampleRows.length
   await new Promise((resolve) => setTimeout(resolve, 450))
+  const rawText = [`Pedido PED-1048${page.pageNumber}`, ...sampleRows[index], ...sampleUncertain[index]].join('\n')
   return {
     pageId: page.id,
     extractedRows: sampleRows[index],
@@ -32,6 +33,8 @@ async function mockProcessPage(page: { id: string; pageNumber: number }): Promis
         ? ['1 linha parcial sem valor total.']
         : ['1 valor unitário com caractere suspeito.', 'Confirmar acentuação da descrição.'],
     engine: 'mock-local-ocr',
+    rawText,
+    detectedOrderReference: extractOrderReferenceFromOCRText(rawText) ?? undefined,
   }
 }
 
@@ -60,6 +63,7 @@ async function realProcessPage(page: { id: string; name: string; pageNumber: num
       warnings: [`Pré-processamento aplicado: ${preparedImage.operations.join(', ')}.`, ...normalized.warnings],
       rawText: result.data.text,
       engine: 'tesseract.js',
+      detectedOrderReference: extractOrderReferenceFromOCRText(result.data.text) ?? undefined,
     }
   } catch {
     const fallback = await mockProcessPage(page)
