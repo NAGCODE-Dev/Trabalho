@@ -4,11 +4,10 @@ import {
   appendPilotLogs,
   appendScanStructureMemory,
   appendShortageHistory,
+  deleteShortageHistoryRecords,
   deleteShortageHistoryRecord,
-  hasSeededDemo,
   loadSnapshot,
   saveCurrentOrder,
-  setSeededDemo,
 } from '../lib/db'
 import { generateId, normalizeText } from '../lib/utils'
 import { browserOCRAdapter } from '../features/scanner/adapters'
@@ -136,7 +135,7 @@ export function usePersistentOrdersApp() {
   const demo = useMemo(() => buildDemoOrders(), [])
   const [isReady, setIsReady] = useState(false)
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
-  const [shortageHistory, setShortageHistoryState] = useState(demo.shortageHistory)
+  const [shortageHistory, setShortageHistoryState] = useState<AppStateSnapshot['shortageHistory']>([])
   const [, setScanStructureMemory] = useState<AppStateSnapshot['scanStructureMemory']>([])
   const [, setPilotLogs] = useState<AppStateSnapshot['pilotLogs']>([])
   const [lastUndo, setLastUndo] = useState<UndoState | null>(null)
@@ -157,32 +156,37 @@ export function usePersistentOrdersApp() {
   useEffect(() => {
     let mounted = true
 
+    function isLegacyDemoShortageRecord(record: AppStateSnapshot['shortageHistory'][number]) {
+      return (
+        (record.productCode === '7892002' &&
+          record.productLabel === 'Feijao Carioca 1kg' &&
+          record.occurrenceType === 'total-shortage' &&
+          record.missingQuantity === 8 &&
+          record.lastOrderReference === 'PED-10460') ||
+        (record.productCode === '7894004' &&
+          record.productLabel === 'Macarrao Espaguete 500g' &&
+          record.occurrenceType === 'partial-shortage' &&
+          record.missingQuantity === 2 &&
+          record.lastOrderReference === 'PED-10470')
+      )
+    }
+
     async function bootstrap() {
       const snapshot = await loadSnapshot()
-      const seeded = await hasSeededDemo()
+      const cleanedHistory = snapshot.shortageHistory.filter((record) => !isLegacyDemoShortageRecord(record))
+      const removedLegacyDemoRecords = snapshot.shortageHistory.length - cleanedHistory.length
 
-      if (!seeded && !snapshot.currentOrder) {
-        if (snapshot.shortageHistory.length === 0) {
-          await appendShortageHistory(demo.shortageHistory)
-        }
-        await setSeededDemo(true)
-        if (!mounted) return
-        setCurrentOrder(null)
-        setShortageHistoryState(demo.shortageHistory)
-        setScanStructureMemory(snapshot.scanStructureMemory)
-        setPilotLogs(snapshot.pilotLogs)
-        pushPilotLog({
-          level: 'info',
-          event: 'app_bootstrap',
-          message: 'Aplicação inicializada na tela inicial.',
-        })
-        setIsReady(true)
-        return
+      if (removedLegacyDemoRecords > 0) {
+        await deleteShortageHistoryRecords(
+          snapshot.shortageHistory
+            .filter((record) => isLegacyDemoShortageRecord(record))
+            .map((record) => record.id),
+        )
       }
 
       if (!mounted) return
       setCurrentOrder(snapshot.currentOrder)
-      setShortageHistoryState(snapshot.shortageHistory.length > 0 ? snapshot.shortageHistory : demo.shortageHistory)
+      setShortageHistoryState(cleanedHistory)
       setScanStructureMemory(snapshot.scanStructureMemory)
       setPilotLogs(snapshot.pilotLogs)
       pushPilotLog({
@@ -195,6 +199,8 @@ export function usePersistentOrdersApp() {
       })
       if (snapshot.currentOrder) {
         showToast(`Pedido ${snapshot.currentOrder.reference} recuperado automaticamente.`, 'warning')
+      } else if (removedLegacyDemoRecords > 0) {
+        showToast('Histórico demo antigo removido do dispositivo.')
       }
       setIsReady(true)
     }

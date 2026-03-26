@@ -78,6 +78,11 @@ export async function deleteShortageHistoryRecord(recordId: string) {
   await db.shortageHistory.delete(recordId)
 }
 
+export async function deleteShortageHistoryRecords(recordIds: string[]) {
+  if (recordIds.length === 0) return
+  await db.shortageHistory.bulkDelete(recordIds)
+}
+
 export async function appendScanStructureMemory(records: ScanStructureProfile[]) {
   if (records.length === 0) return
   await db.scanStructureMemory.bulkPut(records)

@@ -51,6 +51,18 @@ describe('App integration', () => {
     expect(screen.getByText(/INT-9001/i)).toBeInTheDocument()
   })
 
+  it('não semeia histórico demo em banco limpo', async () => {
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Abrir histórico$/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Nenhum histórico mínimo salvo/i)).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Feijao Carioca 1kg/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Macarrao Espaguete 500g/i)).not.toBeInTheDocument()
+  })
+
   it('conclui pedido com falta, preserva histórico mínimo e permite excluir o registro', async () => {
     render(<App />)
 
