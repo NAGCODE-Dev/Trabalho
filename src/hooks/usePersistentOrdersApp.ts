@@ -4,6 +4,7 @@ import {
   appendPilotLogs,
   appendScanStructureMemory,
   appendShortageHistory,
+  deleteShortageHistoryRecord,
   hasSeededDemo,
   loadSnapshot,
   saveCurrentOrder,
@@ -255,6 +256,7 @@ export function usePersistentOrdersApp() {
       orderReference: next.reference,
     })
     showToast('Novo pedido iniciado.')
+    return next
   }
 
   function loadTemplate(order: Order) {
@@ -264,9 +266,7 @@ export function usePersistentOrdersApp() {
   }
 
   async function addPages(files: FileList | File[]) {
-    if (!currentOrder) {
-      createOrder()
-    }
+    const baseOrder = currentOrder ?? createOrder()
 
     const nextFiles = Array.from(files)
     const pages = await Promise.all(
@@ -274,7 +274,7 @@ export function usePersistentOrdersApp() {
         id: generateId('page'),
         name: file.name,
         imageUrl: await fileToDataUrl(file),
-        pageNumber: (currentOrder?.pages.length ?? 0) + index + 1,
+        pageNumber: baseOrder.pages.length + index + 1,
         uploadedAt: new Date().toISOString(),
         status: 'queued' as const,
         recognizedItems: 0,
@@ -299,7 +299,7 @@ export function usePersistentOrdersApp() {
       level: 'info',
       event: 'pages_added',
       message: `${pages.length} página(s) adicionada(s) ao pedido.`,
-      orderReference: currentOrder?.reference,
+      orderReference: baseOrder.reference,
       metadata: {
         count: pages.length,
       },
@@ -695,6 +695,12 @@ export function usePersistentOrdersApp() {
     return { success: true, reason: `${records.length} ocorrência(s) mínima(s) preservada(s) no histórico.` }
   }
 
+  function removeShortageHistoryEntry(recordId: string) {
+    void deleteShortageHistoryRecord(recordId)
+    setShortageHistoryState((previous) => previous.filter((record) => record.id !== recordId))
+    showToast('Registro removido do histórico.')
+  }
+
   const summary = currentOrder ? summarizeOrder(currentOrder) : null
 
   return {
@@ -727,6 +733,7 @@ export function usePersistentOrdersApp() {
     moveToFinalReview,
     returnToPicking,
     completeCurrentOrder,
+    removeShortageHistoryEntry,
     showToast,
   }
 }

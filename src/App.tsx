@@ -16,7 +16,7 @@ import { ShortageHistoryPanel } from './features/shortage-history/components/Sho
 import { usePersistentOrdersApp } from './hooks/usePersistentOrdersApp'
 import { usePwaState } from './hooks/usePwaState'
 import { filterItems } from './features/orders/utils'
-import type { OrderFilter, OrderItem } from './features/orders/types'
+import type { MinimalShortageRecord, OrderFilter, OrderItem } from './features/orders/types'
 import { PwaBanner } from './components/PwaBanner'
 
 function App() {
@@ -33,6 +33,16 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState<OrderFilter>('all')
   const [deleteCandidate, setDeleteCandidate] = useState<OrderItem | null>(null)
+  const [deleteHistoryCandidate, setDeleteHistoryCandidate] = useState<MinimalShortageRecord | null>(null)
+
+  function openHistory() {
+    setShowHistory(true)
+    setShowOrderWorkspace(false)
+  }
+
+  function closeHistory() {
+    setShowHistory(false)
+  }
 
   const visibleItems = useMemo(() => {
     if (!app.currentOrder) return []
@@ -55,9 +65,15 @@ function App() {
           currentReference={app.currentOrder?.reference}
           onNewOrder={() => {
             setNewOrderOpen(true)
-            setShowHistory(false)
+            closeHistory()
           }}
-          onToggleHistory={() => setShowHistory((current) => !current)}
+          onToggleHistory={() => {
+            if (showHistory) {
+              closeHistory()
+              return
+            }
+            openHistory()
+          }}
           showingHistory={showHistory}
           isOnline={pwa.isOnline}
           isInstalled={pwa.isInstalled}
@@ -74,22 +90,23 @@ function App() {
           updateReady={pwa.updateReady}
           onInstall={() => void pwa.promptInstall()}
           onRefresh={() => window.location.reload()}
+          onDismissInstall={pwa.dismissInstallPrompt}
         />
       ) : null}
 
       {app.currentOrder && showOrderWorkspace && !showHistory ? (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button variant="secondary" onClick={() => setAddItemOpen(true)}>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
+            <Button size="sm" variant="secondary" onClick={() => setAddItemOpen(true)}>
               <Plus className="h-4 w-4" />
-              Faltou reconhecer um item? Adicione manualmente
+              Adicionar item
             </Button>
-            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+            <Button size="sm" variant="secondary" onClick={() => setImportOpen(true)}>
               <ScanText className="h-4 w-4" />
-              Importar texto como backup
+              Importar texto
             </Button>
-            <Button variant="ghost" onClick={() => setExitOpen(true)}>
-              Sair da tela do pedido
+            <Button size="sm" variant="ghost" onClick={() => setExitOpen(true)}>
+              Sair
             </Button>
           </div>
 
@@ -126,75 +143,61 @@ function App() {
             onResetStatuses={app.resetOrderStatuses}
           />
         </>
+      ) : showHistory ? (
+        <ShortageHistoryPanel history={app.shortageHistory} onDelete={(recordId) => {
+          const record = app.shortageHistory.find((entry) => entry.id === recordId)
+          if (record) {
+            setDeleteHistoryCandidate(record)
+          }
+        }} />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <section className="grid gap-4">
-            <Card className="overflow-hidden border-0 bg-white">
-              <div className="bg-[linear-gradient(180deg,#fff8ea_0%,#f6f4ee_100%)] p-5">
-                <h2 className="text-2xl font-black text-slate-950">Tela inicial</h2>
-                <p className="mt-2 text-sm text-slate-700">
-                  Escolha como começar. Nada abre sozinho. O operador entra no pedido quando decidir.
-                </p>
-
-                <div className="mt-4 grid gap-3">
-                  {app.currentOrder ? (
-                    <div className="rounded-[28px] border border-amber-300 bg-amber-50 p-4">
-                      <div className="text-sm font-semibold text-amber-800">Pedido em andamento recuperado</div>
-                      <div className="mt-1 text-xl font-black text-slate-950">{app.currentOrder.reference}</div>
-                      <p className="mt-1 text-sm text-slate-700">
-                        O pedido continua salvo no dispositivo. Entre nele quando quiser continuar.
-                      </p>
-                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                        <Button
-                          onClick={() => {
-                            setShowOrderWorkspace(true)
-                            setShowHistory(false)
-                          }}
-                        >
-                          Continuar pedido
-                        </Button>
-                        <Button variant="secondary" onClick={() => setShowHistory(true)}>
-                          Ver histórico de faltas
-                        </Button>
+        <section className="grid gap-4">
+          <Card className="overflow-hidden border-0 bg-white">
+            <div className="bg-[linear-gradient(180deg,#fff8ea_0%,#f6f4ee_100%)] p-5">
+              <div className="grid gap-3">
+                {app.currentOrder ? (
+                  <div className="rounded-[28px] border border-amber-300 bg-amber-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-wide text-amber-800">Em andamento</div>
+                        <div className="mt-1 text-2xl font-black text-slate-950">{app.currentOrder.reference}</div>
                       </div>
                     </div>
-                  ) : null}
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Card className="p-4">
-                      <h3 className="text-lg font-black text-slate-950">Começar novo pedido</h3>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Inicie um pedido vazio e depois adicione fotos, câmera ou importação por texto.
-                      </p>
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                       <Button
-                        className="mt-4"
-                        fullWidth
                         onClick={() => {
-                          setNewOrderOpen(true)
-                          setShowHistory(false)
+                          setShowOrderWorkspace(true)
+                          closeHistory()
                         }}
                       >
-                        Novo pedido
+                        Continuar pedido
                       </Button>
-                    </Card>
-
-                    <Card className="p-4">
-                      <h3 className="text-lg font-black text-slate-950">Histórico de faltas</h3>
-                      <p className="mt-1 text-sm text-slate-600">
-                        Consulte itens que já faltaram antes para apoiar a separação.
-                      </p>
-                      <Button className="mt-4" fullWidth variant="secondary" onClick={() => setShowHistory(true)}>
+                      <Button variant="secondary" onClick={openHistory}>
                         Abrir histórico
                       </Button>
-                    </Card>
+                    </div>
                   </div>
+                ) : null}
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Button
+                    size="lg"
+                    fullWidth
+                    onClick={() => {
+                      setNewOrderOpen(true)
+                      closeHistory()
+                    }}
+                  >
+                    Novo pedido
+                  </Button>
+                  <Button size="lg" fullWidth variant="secondary" onClick={openHistory}>
+                    Abrir histórico
+                  </Button>
                 </div>
               </div>
-            </Card>
-          </section>
-
-          <ShortageHistoryPanel history={app.shortageHistory} />
-        </div>
+            </div>
+          </Card>
+        </section>
       )}
 
       {app.toast ? (
@@ -211,6 +214,7 @@ function App() {
           setFilter('all')
           setSearchQuery('')
           setShowOrderWorkspace(true)
+          closeHistory()
         }}
       />
 
@@ -231,7 +235,7 @@ function App() {
         onConfirm={() => {
           setExitOpen(false)
           setShowOrderWorkspace(false)
-          setShowHistory(false)
+          closeHistory()
         }}
       />
 
@@ -254,7 +258,7 @@ function App() {
             }
             setCompletionStep(0)
             setShowOrderWorkspace(false)
-            setShowHistory(true)
+            openHistory()
           })
         }}
       />
@@ -292,6 +296,40 @@ function App() {
               {deleteCandidate.description}
             </div>
             <p className="mt-2">Se isso foi erro de status, prefira redefinir para pendente em vez de excluir.</p>
+          </div>
+        ) : null}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(deleteHistoryCandidate)}
+        onClose={() => setDeleteHistoryCandidate(null)}
+        title="Excluir registro do histórico"
+        description="Confirme a exclusão deste registro mínimo de falta."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeleteHistoryCandidate(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (deleteHistoryCandidate) {
+                  app.removeShortageHistoryEntry(deleteHistoryCandidate.id)
+                }
+                setDeleteHistoryCandidate(null)
+              }}
+            >
+              Confirmar exclusão
+            </Button>
+          </>
+        }
+      >
+        {deleteHistoryCandidate ? (
+          <div className="rounded-3xl bg-amber-50 p-4 text-sm text-amber-900">
+            <div className="font-semibold">{deleteHistoryCandidate.productLabel}</div>
+            <p className="mt-2">
+              Este registro serve só como alerta operacional futuro. Ao excluir, ele some do histórico local.
+            </p>
           </div>
         ) : null}
       </Dialog>

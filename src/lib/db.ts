@@ -74,6 +74,10 @@ export async function appendShortageHistory(records: MinimalShortageRecord[]) {
   await db.shortageHistory.bulkPut(records)
 }
 
+export async function deleteShortageHistoryRecord(recordId: string) {
+  await db.shortageHistory.delete(recordId)
+}
+
 export async function appendScanStructureMemory(records: ScanStructureProfile[]) {
   if (records.length === 0) return
   await db.scanStructureMemory.bulkPut(records)

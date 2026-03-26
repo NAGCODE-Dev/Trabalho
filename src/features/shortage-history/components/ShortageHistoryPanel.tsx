@@ -1,9 +1,16 @@
-import { History, PackageX } from 'lucide-react'
+import { History, PackageX, Trash2 } from 'lucide-react'
 import { Card } from '../../../components/ui/card'
+import { Button } from '../../../components/ui/button'
 import { formatDateTime, formatQuantity } from '../../../lib/utils'
 import type { MinimalShortageRecord } from '../../orders/types'
 
-export function ShortageHistoryPanel({ history }: { history: MinimalShortageRecord[] }) {
+export function ShortageHistoryPanel({
+  history,
+  onDelete,
+}: {
+  history: MinimalShortageRecord[]
+  onDelete?: (recordId: string) => void
+}) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2 text-lg font-black text-slate-950">
@@ -35,6 +42,12 @@ export function ShortageHistoryPanel({ history }: { history: MinimalShortageReco
               <p className="mt-2 text-xs text-slate-500">
                 {formatDateTime(record.createdAt)} {record.lastOrderReference ? `| Último pedido ${record.lastOrderReference}` : ''}
               </p>
+              {onDelete ? (
+                <Button className="mt-3" size="sm" variant="ghost" onClick={() => onDelete(record.id)}>
+                  <Trash2 className="h-4 w-4" />
+                  Excluir
+                </Button>
+              ) : null}
             </div>
           ))
         )}

@@ -72,7 +72,8 @@ export function OrderDetail({
   onResetStatuses,
 }: OrderDetailProps) {
   const isOcrReview = order.stage === 'ocr-review'
-  const isPickingStage = order.stage !== 'ocr-review' && order.stage !== 'final-review'
+  const isPickingStage = order.stage === 'picking'
+  const hasOperationalItems = order.items.length > 0
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const [nextPendingTargetId, setNextPendingTargetId] = useState<string | null>(null)
   const pagesWithAttention = order.pages.filter(
@@ -142,11 +143,11 @@ export function OrderDetail({
         ) : null}
       </div>
 
-      {isPickingStage || order.stage === 'final-review' ? (
+      {(isPickingStage || order.stage === 'final-review') && hasOperationalItems ? (
         <SummaryPanel summary={{ ...summary, visibleItems: visibleItems.length }} />
       ) : null}
 
-      {isPickingStage && summary.pending > 0 ? (
+      {isPickingStage && hasOperationalItems && summary.pending > 0 ? (
         <PendingBanner pending={summary.pending} partial={summary.partialShortage} totalShortage={summary.totalShortage} onUndo={onUndo} />
       ) : null}
 
@@ -207,15 +208,13 @@ export function OrderDetail({
         />
       ) : null}
 
-      {isPickingStage ? (
+      {isPickingStage && hasOperationalItems ? (
         <>
           <Card className="p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-black text-slate-950">Checklist operacional</h3>
-                <p className="text-sm text-slate-600">
-                  A lista fica estável durante a conferência para você não perder a posição.
-                </p>
+                <p className="text-sm text-slate-600">Lista estável. Marque e siga.</p>
               </div>
               <Button onClick={onMoveToFinalReview} disabled={order.items.length === 0}>
                 <ListChecks className="h-4 w-4" />
@@ -280,7 +279,7 @@ export function OrderDetail({
             <ScanSearch className="h-5 w-5" />
             Comece pelas páginas da lista.
           </div>
-          <p className="mt-2 text-sm text-slate-600">Adicione as fotos, faça a leitura e revise antes de liberar a separação. Texto continua como backup.</p>
+          <p className="mt-2 text-sm text-slate-600">Adicione as fotos. O checklist só aparece depois da leitura e da revisão.</p>
         </Card>
       ) : null}
     </section>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+const PWA_INSTALL_DISMISSED_KEY = 'pwa-install-dismissed'
+
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
@@ -18,6 +20,7 @@ export function usePwaState() {
   const [isInstalled, setIsInstalled] = useState(isStandaloneMode())
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [updateReady, setUpdateReady] = useState(false)
+  const [installDismissed, setInstallDismissed] = useState(() => localStorage.getItem(PWA_INSTALL_DISMISSED_KEY) === '1')
 
   useEffect(() => {
     function handleOnline() {
@@ -61,16 +64,24 @@ export function usePwaState() {
     const outcome = await deferredPrompt.userChoice
     if (outcome.outcome === 'accepted') {
       setDeferredPrompt(null)
+      localStorage.removeItem(PWA_INSTALL_DISMISSED_KEY)
+      setInstallDismissed(false)
       return true
     }
     return false
   }
 
+  function dismissInstallPrompt() {
+    localStorage.setItem(PWA_INSTALL_DISMISSED_KEY, '1')
+    setInstallDismissed(true)
+  }
+
   return {
     isOnline,
     isInstalled,
-    canInstall: Boolean(deferredPrompt) && !isInstalled,
+    canInstall: Boolean(deferredPrompt) && !isInstalled && !installDismissed,
     updateReady,
     promptInstall,
+    dismissInstallPrompt,
   }
 }
