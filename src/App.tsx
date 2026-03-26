@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { AlertTriangle, Plus, ScanText, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Eye, EyeOff, Plus, ScanText, Trash2 } from 'lucide-react'
 import { AppShell } from './components/AppShell'
 import { DashboardHeader } from './components/DashboardHeader'
 import { Button } from './components/ui/button'
@@ -19,9 +19,32 @@ import { filterItems } from './features/orders/utils'
 import type { MinimalShortageRecord, OrderFilter, OrderItem } from './features/orders/types'
 import { PwaBanner } from './components/PwaBanner'
 
+const OPERATIONAL_PREFERENCES_KEY = 'warehouse-operational-preferences'
+
+interface OperationalPreferences {
+  compactModeDefault: boolean
+  showProductImageButton: boolean
+}
+
+const DEFAULT_PREFERENCES: OperationalPreferences = {
+  compactModeDefault: false,
+  showProductImageButton: true,
+}
+
 function App() {
   const app = usePersistentOrdersApp()
   const pwa = usePwaState()
+  const [preferences, setPreferences] = useState<OperationalPreferences>(() => {
+    if (typeof window === 'undefined') return DEFAULT_PREFERENCES
+
+    try {
+      const raw = window.localStorage.getItem(OPERATIONAL_PREFERENCES_KEY)
+      if (!raw) return DEFAULT_PREFERENCES
+      return { ...DEFAULT_PREFERENCES, ...JSON.parse(raw) }
+    } catch {
+      return DEFAULT_PREFERENCES
+    }
+  })
   const [showHistory, setShowHistory] = useState(false)
   const [showOrderWorkspace, setShowOrderWorkspace] = useState(false)
   const [newOrderOpen, setNewOrderOpen] = useState(false)
@@ -34,6 +57,7 @@ function App() {
   const [filter, setFilter] = useState<OrderFilter>('all')
   const [deleteCandidate, setDeleteCandidate] = useState<OrderItem | null>(null)
   const [deleteHistoryCandidate, setDeleteHistoryCandidate] = useState<MinimalShortageRecord | null>(null)
+  const compactPreferenceAppliedForOrder = useRef<string | null>(null)
 
   function openHistory() {
     setShowHistory(true)
@@ -48,6 +72,26 @@ function App() {
     if (!app.currentOrder) return []
     return filterItems(app.currentOrder.items, filter, searchQuery)
   }, [app.currentOrder, filter, searchQuery])
+
+  useEffect(() => {
+    window.localStorage.setItem(OPERATIONAL_PREFERENCES_KEY, JSON.stringify(preferences))
+  }, [preferences])
+
+  useEffect(() => {
+    if (!app.currentOrder) {
+      compactPreferenceAppliedForOrder.current = null
+      return
+    }
+
+    if (!showOrderWorkspace || !preferences.compactModeDefault) return
+    if (compactPreferenceAppliedForOrder.current === app.currentOrder.id) return
+
+    compactPreferenceAppliedForOrder.current = app.currentOrder.id
+
+    if (!app.currentOrder.compactMode) {
+      app.toggleCompactMode()
+    }
+  }, [app, preferences.compactModeDefault, showOrderWorkspace])
 
   if (!app.isReady) {
     return (
@@ -141,6 +185,7 @@ function App() {
             onToggleCompactMode={app.toggleCompactMode}
             onMarkAllSeparated={app.markAllSeparated}
             onResetStatuses={app.resetOrderStatuses}
+            showProductImageButton={preferences.showProductImageButton}
           />
         </>
       ) : showHistory ? (
@@ -192,6 +237,34 @@ function App() {
                   </Button>
                   <Button size="lg" fullWidth variant="secondary" onClick={openHistory}>
                     Abrir histórico
+                  </Button>
+                </div>
+
+                <div className="grid gap-2 rounded-[28px] border border-slate-200 bg-white/80 p-3 sm:grid-cols-2">
+                  <Button
+                    size="sm"
+                    variant={preferences.compactModeDefault ? 'primary' : 'secondary'}
+                    onClick={() =>
+                      setPreferences((current) => ({
+                        ...current,
+                        compactModeDefault: !current.compactModeDefault,
+                      }))
+                    }
+                  >
+                    {preferences.compactModeDefault ? 'Compacto padrão: ON' : 'Compacto padrão: OFF'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={preferences.showProductImageButton ? 'secondary' : 'primary'}
+                    onClick={() =>
+                      setPreferences((current) => ({
+                        ...current,
+                        showProductImageButton: !current.showProductImageButton,
+                      }))
+                    }
+                  >
+                    {preferences.showProductImageButton ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    {preferences.showProductImageButton ? 'Imagem de apoio: ON' : 'Imagem de apoio: OFF'}
                   </Button>
                 </div>
               </div>

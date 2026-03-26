@@ -9,7 +9,9 @@ import { browserOCRAdapter } from './features/scanner/adapters'
 async function flushReactWork() {
   await act(async () => {
     await Promise.resolve()
-    await new Promise((resolve) => window.setTimeout(resolve, 0))
+    await Promise.resolve()
+    await new Promise((resolve) => window.setTimeout(resolve, 20))
+    await Promise.resolve()
   })
 }
 
@@ -96,7 +98,11 @@ describe('App integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /Revisão final/i }))
     fireEvent.click(await screen.findByRole('button', { name: /Confirmar conclusão/i }))
     fireEvent.click(await screen.findByRole('button', { name: /Confirmar revisão/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /Concluir e liberar próxima lista/i }))
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /Concluir e liberar próxima lista/i }))
+      await Promise.resolve()
+      await new Promise((resolve) => window.setTimeout(resolve, 20))
+    })
     await flushReactWork()
 
     await waitFor(() => {
@@ -111,7 +117,11 @@ describe('App integration', () => {
     const recordTitle = screen.getByText(/Macarrao QA 500g/i)
     const recordCard = recordTitle.closest('.rounded-3xl.border.border-slate-200.bg-slate-50.p-4') as HTMLElement
     fireEvent.click(within(recordCard).getByRole('button', { name: /Excluir/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /Confirmar exclusão/i }))
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /Confirmar exclusão/i }))
+      await Promise.resolve()
+      await new Promise((resolve) => window.setTimeout(resolve, 20))
+    })
     await flushReactWork()
 
     await waitFor(() => {
@@ -281,5 +291,35 @@ describe('App integration', () => {
     await waitFor(() => {
       expect(screen.getByText(/Item Recuperacao QA/i)).toBeInTheDocument()
     })
+  })
+
+  it('aplica preferências operacionais simples ao abrir um pedido', async () => {
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Compacto padrão: OFF/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Imagem de apoio: ON/i }))
+
+    const newOrderButtons = await screen.findAllByRole('button', { name: /^Novo pedido$/i })
+    fireEvent.click(newOrderButtons[0])
+    fireEvent.click(await screen.findByRole('button', { name: /Criar pedido/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Importar texto/i }))
+
+    const textarea = (await screen.findAllByRole('textbox')).find(
+      (element) => (element as HTMLTextAreaElement).value.includes('Arroz 5kg;7891001'),
+    ) as HTMLTextAreaElement
+    fireEvent.change(textarea, {
+      target: {
+        value: 'Item Preferencia QA;7898888;UN;3;6,00;18,00',
+      },
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: /Importar itens válidos/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Item Preferencia QA/i)).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('button', { name: /Modo detalhado/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Imagem de apoio de Item Preferencia QA/i })).not.toBeInTheDocument()
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeAdaptiveThreshold, detectContentBounds, detectDocumentCorners, removeIsolatedNoise } from './preprocess'
+import { analyzeImageCaptureQuality, computeAdaptiveThreshold, detectContentBounds, detectDocumentCorners, removeIsolatedNoise } from './preprocess'
 
 function createBinaryScene(width: number, height: number, painter: (x: number, y: number) => boolean) {
   const luminances = new Array<number>(width * height).fill(255)
@@ -45,6 +45,16 @@ describe('adaptive threshold helpers', () => {
     expect(cleaned[6]).toBe(255)
     expect(cleaned[12]).toBe(0)
     expect(cleaned[13]).toBe(0)
+  })
+
+  it('detecta imagem escura e com pouca nitidez', () => {
+    const width = 4
+    const height = 4
+    const luminances = new Array<number>(width * height).fill(40)
+    const result = analyzeImageCaptureQuality(luminances, width, height)
+    expect(result.isTooDark).toBe(true)
+    expect(result.isLowDetail).toBe(true)
+    expect(result.warnings.length).toBeGreaterThan(0)
   })
 })
 

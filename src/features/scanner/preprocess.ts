@@ -29,6 +29,12 @@ export interface PreprocessResult {
   operations: string[]
 }
 
+export interface ImageCaptureQuality {
+  isTooDark: boolean
+  isLowDetail: boolean
+  warnings: string[]
+}
+
 function loadImage(source: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image()
@@ -51,6 +57,68 @@ function percentile(values: number[], ratio: number) {
   const sorted = [...values].sort((left, right) => left - right)
   const index = Math.min(sorted.length - 1, Math.max(0, Math.floor((sorted.length - 1) * ratio)))
   return sorted[index] ?? 0
+}
+
+export function analyzeImageCaptureQuality(luminances: number[], width: number, height: number): ImageCaptureQuality {
+  const average = luminances.reduce((sum, value) => sum + value, 0) / Math.max(1, luminances.length)
+  let edgeEnergy = 0
+  let comparisons = 0
+
+  for (let row = 0; row < height - 1; row += 1) {
+    for (let column = 0; column < width - 1; column += 1) {
+      const current = luminances[row * width + column]
+      const right = luminances[row * width + (column + 1)]
+      const bottom = luminances[(row + 1) * width + column]
+      edgeEnergy += Math.abs(current - right) + Math.abs(current - bottom)
+      comparisons += 2
+    }
+  }
+
+  const averageEdgeEnergy = edgeEnergy / Math.max(1, comparisons)
+  const isTooDark = average < 95
+  const isLowDetail = averageEdgeEnergy < 18
+  const warnings: string[] = []
+
+  if (isTooDark) warnings.push('Foto escura. Aproxime e aumente a luz.')
+  if (isLowDetail) warnings.push('Foto com pouca nitidez. Tente firmar mais a câmera.')
+
+  return {
+    isTooDark,
+    isLowDetail,
+    warnings,
+  }
+}
+
+export async function inspectImageCaptureQuality(imageUrl: string): Promise<ImageCaptureQuality> {
+  if (import.meta.env.MODE === 'test' || typeof Image === 'undefined') {
+    return { isTooDark: false, isLowDetail: false, warnings: [] }
+  }
+
+  const image = await loadImage(imageUrl)
+  const scale = Math.min(1, Math.max(0.35, 900 / Math.max(image.width, image.height)))
+  const width = Math.max(1, Math.round(image.width * scale))
+  const height = Math.max(1, Math.round(image.height * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+
+  if (!context) {
+    return { isTooDark: false, isLowDetail: false, warnings: [] }
+  }
+
+  context.drawImage(image, 0, 0, width, height)
+  const frame = context.getImageData(0, 0, width, height)
+  const luminances = new Array<number>(frame.data.length / 4)
+
+  for (let index = 0; index < frame.data.length; index += 4) {
+    const red = frame.data[index]
+    const green = frame.data[index + 1]
+    const blue = frame.data[index + 2]
+    luminances[index / 4] = 0.299 * red + 0.587 * green + 0.114 * blue
+  }
+
+  return analyzeImageCaptureQuality(luminances, width, height)
 }
 
 function distance(a: Point, b: Point) {

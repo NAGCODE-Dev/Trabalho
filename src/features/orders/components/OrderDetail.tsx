@@ -15,6 +15,7 @@ import { ReviewFinalPanel } from './ReviewFinalPanel'
 interface OrderDetailProps {
   order: Order
   summary: OrderSummary
+  showProductImageButton: boolean
   filter: OrderFilter
   query: string
   visibleItems: OrderItem[]
@@ -45,6 +46,7 @@ interface OrderDetailProps {
 export function OrderDetail({
   order,
   summary,
+  showProductImageButton,
   filter,
   query,
   visibleItems,
@@ -268,6 +270,7 @@ export function OrderDetail({
                   <ItemCard
                     item={item}
                     compactMode={order.compactMode}
+                    showProductImageButton={showProductImageButton}
                     searchQuery={query}
                     onSetStatus={(status) => {
                       onSetStatus(item.id, status)

@@ -13,6 +13,7 @@ import { generateId, normalizeText } from '../lib/utils'
 import { browserOCRAdapter } from '../features/scanner/adapters'
 import { normalizePreviewItems } from '../features/scanner/normalizer'
 import { parseOrderLine } from '../features/scanner/parser'
+import { inspectImageCaptureQuality } from '../features/scanner/preprocess'
 import { buildScanStructureProfile } from '../features/scanner/structure'
 import { validateOCRConsistency } from '../features/scanner/validator'
 import {
@@ -288,19 +289,28 @@ export function usePersistentOrdersApp() {
 
     const nextFiles = Array.from(files)
     const pages = await Promise.all(
-      nextFiles.map(async (file, index) => ({
-        id: generateId('page'),
-        name: file.name,
-        imageUrl: await fileToDataUrl(file),
-        pageNumber: baseOrder.pages.length + index + 1,
-        uploadedAt: new Date().toISOString(),
-        status: 'queued' as const,
-        recognizedItems: 0,
-        warnings: [],
-        rawLines: [],
-        unrecognizedLines: [],
-        parserNotes: [],
-      })),
+      nextFiles.map(async (file, index) => {
+        const imageUrl = await fileToDataUrl(file)
+        const quality = await inspectImageCaptureQuality(imageUrl).catch(() => ({
+          isTooDark: false,
+          isLowDetail: false,
+          warnings: [],
+        }))
+
+        return {
+          id: generateId('page'),
+          name: file.name,
+          imageUrl,
+          pageNumber: baseOrder.pages.length + index + 1,
+          uploadedAt: new Date().toISOString(),
+          status: 'queued' as const,
+          recognizedItems: 0,
+          warnings: quality.warnings,
+          rawLines: [],
+          unrecognizedLines: [],
+          parserNotes: [],
+        }
+      }),
     )
 
     setCurrentOrder((previous) => {

@@ -10,6 +10,7 @@ import { StatusBadge } from './StatusBadge'
 interface ItemCardProps {
   item: OrderItem
   compactMode: boolean
+  showProductImageButton: boolean
   searchQuery: string
   onSetStatus: (status: OrderItem['status']) => void
   onSetSeparatedQuantity: (quantity: number) => void
@@ -20,6 +21,7 @@ interface ItemCardProps {
 export function ItemCard({
   item,
   compactMode,
+  showProductImageButton,
   searchQuery,
   onSetStatus,
   onSetSeparatedQuantity,
@@ -58,9 +60,16 @@ export function ItemCard({
               </span>
             </div>
           </div>
-          <Button size="icon" variant="secondary" onClick={onOpenImage}>
-            <Camera className="h-4 w-4" />
-          </Button>
+          {showProductImageButton ? (
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={onOpenImage}
+              aria-label={`Imagem de apoio de ${item.description}`}
+            >
+              <Camera className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
 
         <div className={`mt-4 grid gap-2 ${compactMode ? 'grid-cols-3' : 'grid-cols-1 sm:grid-cols-[0.9fr_1.2fr_0.9fr]'}`}>
