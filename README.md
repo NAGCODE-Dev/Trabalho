@@ -85,6 +85,42 @@ Rodar testes:
 npm run test:run
 ```
 
+## Deploy na Vercel
+
+O projeto já está preparado para deploy como PWA na Vercel.
+
+### Configuração esperada
+
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Output directory: `dist`
+
+Também foi incluído o arquivo:
+
+- `vercel.json`
+
+Ele define:
+
+- build/output explícitos
+- rewrite para SPA
+- cabeçalho correto do `manifest.webmanifest`
+- cache conservador para `sw.js`
+
+### Publicação
+
+```bash
+npm install
+npm run build
+```
+
+Depois, na Vercel:
+
+1. importe o repositório
+2. confirme o preset `Vite`
+3. publique
+
+Em produção, o PWA tende a funcionar melhor por já estar em HTTPS, o que ajuda instalação, service worker e modo standalone.
+
 ## Fluxo principal
 
 1. Criar ou abrir um pedido.
