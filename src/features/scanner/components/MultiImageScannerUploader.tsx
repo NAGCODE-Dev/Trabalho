@@ -61,6 +61,18 @@ export function MultiImageScannerUploader({
         </div>
       </div>
 
+      <div className="rounded-3xl border border-dashed border-amber-300 bg-amber-50/70 p-3">
+        <div className="text-xs font-black uppercase tracking-wide text-amber-800">Guia rápido da câmera</div>
+        <p className="mt-2 text-sm text-slate-700">
+          Preencha a moldura com a folha, evite sombra forte e prefira foto em pé.
+        </p>
+        <div className="mt-3 rounded-[28px] border-2 border-amber-400/80 bg-white/70 p-3">
+          <div className="rounded-[22px] border-2 border-dashed border-slate-400 p-6 text-center text-xs font-semibold text-slate-500">
+            Enquadre a folha inteira aqui
+          </div>
+        </div>
+      </div>
+
       {pages.length > 0 ? (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-2xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">Fila {queuedCount}</div>

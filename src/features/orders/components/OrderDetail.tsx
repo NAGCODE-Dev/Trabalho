@@ -223,6 +223,23 @@ export function OrderDetail({
             </div>
           </Card>
 
+          {order.auditTrail.length > 0 ? (
+            <Card className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-black uppercase tracking-wide text-slate-700">Últimas ações</h3>
+                <span className="text-xs font-semibold text-slate-500">Só deste pedido</span>
+              </div>
+              <div className="mt-3 grid gap-2">
+                {order.auditTrail.slice(0, 4).map((entry) => (
+                  <div key={entry.id} className="rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                    <span className="font-semibold">{entry.label}</span>
+                    {entry.detail ? ` • ${entry.detail}` : ''}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
+
           <SearchAndFilterBar
             query={query}
             filter={filter}

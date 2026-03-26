@@ -19,6 +19,7 @@ import {
   type AppStateSnapshot,
   type ItemStatus,
   type OCRPreviewItem,
+  type OrderAuditEntry,
   type Order,
   type OrderItem,
   type OrderPage,
@@ -47,6 +48,15 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 interface UndoState {
   itemId: string
   previous: OrderItem
+}
+
+function appendAuditTrail(order: Order, entry: Omit<OrderAuditEntry, 'id' | 'createdAt'>) {
+  const record: OrderAuditEntry = {
+    id: generateId('audit'),
+    createdAt: new Date().toISOString(),
+    ...entry,
+  }
+  return [record, ...order.auditTrail].slice(0, 12)
 }
 
 function cloneTemplate(order: Order, history: AppStateSnapshot['shortageHistory']): Order {
@@ -81,6 +91,7 @@ function cloneTemplate(order: Order, history: AppStateSnapshot['shortageHistory'
     compactMode: false,
     items: orderItemsByCriticality(items),
     pages,
+    auditTrail: [],
   }
 }
 
@@ -111,6 +122,7 @@ function buildBlankOrder(reference?: string): Order {
       previewItems: [],
       issues: [],
     },
+    auditTrail: [],
   }
 }
 
@@ -298,6 +310,10 @@ export function usePersistentOrdersApp() {
         stage: 'intake',
         sourceType: 'scan',
         pages: [...base.pages, ...pages],
+        auditTrail: appendAuditTrail(base, {
+          label: 'Páginas adicionadas',
+          detail: `${pages.length} nova(s)`,
+        }),
         updatedAt: new Date().toISOString(),
       }
     })
@@ -464,6 +480,10 @@ export function usePersistentOrdersApp() {
         reference: nextReference,
         stage: 'ocr-review',
         pages,
+        auditTrail: appendAuditTrail(order, {
+          label: 'Leitura concluída',
+          detail: `${previewItems.length} item(ns)`,
+        }),
         ocrReview: {
           processedAt: new Date().toISOString(),
           previewItems,
@@ -511,6 +531,10 @@ export function usePersistentOrdersApp() {
     updateOrder((order) => ({
       ...order,
       stage: 'picking',
+      auditTrail: appendAuditTrail(order, {
+        label: 'Separação liberada',
+        detail: `${order.ocrReview.previewItems.length} item(ns)`,
+      }),
       items: mergeItems(order, normalizePreviewItems(order.ocrReview.previewItems), shortageHistory),
     }))
     showToast('Checklist gerado a partir da revisão do OCR.', 'success')
@@ -551,6 +575,10 @@ export function usePersistentOrdersApp() {
       ...order,
       stage: order.stage === 'intake' ? 'picking' : order.stage,
       sourceType: order.sourceType === 'scan' ? order.sourceType : 'manual',
+      auditTrail: appendAuditTrail(order, {
+        label: 'Item manual',
+        detail: input.description,
+      }),
       items: mergeItems(order, [item], shortageHistory),
     }))
     showToast('Item manual adicionado como exceção.', 'warning')
@@ -561,6 +589,10 @@ export function usePersistentOrdersApp() {
       ...order,
       stage: 'picking',
       sourceType: 'text',
+      auditTrail: appendAuditTrail(order, {
+        label: 'Importação por texto',
+        detail: `${previewItems.length} item(ns)`,
+      }),
       items: mergeItems(order, normalizePreviewItems(previewItems).map((item) => ({ ...item, source: 'text-import' })), shortageHistory),
     }))
     showToast(`${previewItems.length} item(ns) importado(s) por texto.`, 'success')
@@ -569,6 +601,10 @@ export function usePersistentOrdersApp() {
   function setItemStatus(itemId: string, status: ItemStatus) {
     updateOrder((order) => ({
       ...order,
+      auditTrail: appendAuditTrail(order, {
+        label: 'Status alterado',
+        detail: status === 'separated-complete' ? 'OK' : status === 'partial-shortage' ? 'Parcial' : status === 'total-shortage' ? 'Falta' : 'Pendente',
+      }),
       items: order.items.map((item) => {
         if (item.id !== itemId) return item
         setLastUndo({ itemId, previous: item })
@@ -580,6 +616,10 @@ export function usePersistentOrdersApp() {
   function setSeparatedQuantity(itemId: string, quantitySeparated: number) {
     updateOrder((order) => ({
       ...order,
+      auditTrail: appendAuditTrail(order, {
+        label: 'Quantidade feita',
+        detail: String(quantitySeparated),
+      }),
       items: order.items.map((item) => {
         if (item.id !== itemId) return item
         setLastUndo({ itemId, previous: item })
@@ -612,6 +652,9 @@ export function usePersistentOrdersApp() {
     updateOrder((order) => ({
       ...order,
       stage: 'picking',
+      auditTrail: appendAuditTrail(order, {
+        label: 'Reset de status',
+      }),
       items: order.items.map((item) =>
         recalculateItem({
           ...item,
@@ -627,6 +670,9 @@ export function usePersistentOrdersApp() {
     updateOrder((order) => ({
       ...order,
       stage: 'picking',
+      auditTrail: appendAuditTrail(order, {
+        label: 'Marcar todos OK',
+      }),
       items: order.items.map((item) =>
         recalculateItem({
           ...item,
@@ -641,6 +687,9 @@ export function usePersistentOrdersApp() {
   function deleteItem(itemId: string) {
     updateOrder((order) => ({
       ...order,
+      auditTrail: appendAuditTrail(order, {
+        label: 'Item excluído',
+      }),
       items: order.items.filter((item) => item.id !== itemId),
     }))
     showToast('Item removido do pedido.', 'warning')
@@ -650,6 +699,9 @@ export function usePersistentOrdersApp() {
     if (!lastUndo) return
     updateOrder((order) => ({
       ...order,
+      auditTrail: appendAuditTrail(order, {
+        label: 'Desfazer alteração',
+      }),
       items: order.items.map((item) => (item.id === lastUndo.itemId ? lastUndo.previous : item)),
     }))
     setLastUndo(null)
@@ -666,6 +718,9 @@ export function usePersistentOrdersApp() {
   function moveToFinalReview() {
     updateOrder((order) => ({
       ...order,
+      auditTrail: appendAuditTrail(order, {
+        label: 'Revisão final',
+      }),
       stage: 'final-review',
     }))
   }
@@ -673,6 +728,9 @@ export function usePersistentOrdersApp() {
   function returnToPicking() {
     updateOrder((order) => ({
       ...order,
+      auditTrail: appendAuditTrail(order, {
+        label: 'Volta para separação',
+      }),
       stage: 'picking',
     }))
   }

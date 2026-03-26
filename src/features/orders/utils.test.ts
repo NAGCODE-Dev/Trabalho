@@ -55,6 +55,7 @@ describe('summarizeOrder', () => {
       compactMode: false,
       sourceType: 'manual',
       ocrReview: { previewItems: [], issues: [] },
+      auditTrail: [],
       items: [
         recalculateItem(makeItem({ status: 'separated-complete', quantitySeparated: 10 })),
         recalculateItem(makeItem({ id: 'item-2', status: 'partial-shortage', quantitySeparated: 4 })),

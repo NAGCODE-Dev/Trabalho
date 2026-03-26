@@ -93,6 +93,13 @@ export interface OrderSummary {
   completionRate: number
 }
 
+export interface OrderAuditEntry {
+  id: string
+  createdAt: string
+  label: string
+  detail?: string
+}
+
 export interface Order {
   id: string
   reference: string
@@ -105,6 +112,7 @@ export interface Order {
   ocrReview: OCRReviewState
   sourceType: 'scan' | 'text' | 'manual'
   compactMode: boolean
+  auditTrail: OrderAuditEntry[]
 }
 
 export interface MinimalShortageRecord {

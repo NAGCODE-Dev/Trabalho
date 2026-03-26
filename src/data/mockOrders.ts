@@ -66,6 +66,7 @@ export function buildDemoOrders() {
       previewItems: [],
       issues: [],
     },
+    auditTrail: [],
     items: [
       makeItem({
         description: 'Arroz Tipo 1 5kg',
@@ -170,6 +171,7 @@ export function buildDemoOrders() {
         },
       ],
     },
+    auditTrail: [],
     items: [],
   }
 
